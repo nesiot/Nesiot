@@ -5,9 +5,6 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
 <meta name="theme-color" content="#0a0f1a">
 <title>נסיעות Live</title>
-  <link rel="apple-touch-icon" href="app-icon-1024.png">
-<link rel="icon" href="app-icon-1024.png">
-<link rel="manifest" href="manifest.json">
 <link href="https://fonts.googleapis.com/css2?family=Heebo:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
 <style>
 :root {
@@ -41,6 +38,30 @@ body.light-mode .search-bar input{background:var(--ink3);color:var(--txt);}
 body.light-mode #commentText{background:var(--ink3);color:var(--txt);}
 body.light-mode .trip-block{background:var(--ink2);}
 body.light-mode .login-input{background:var(--ink2);color:var(--txt);}
+/* ── VEHICLE DETAIL & SERVICE ── */
+.vehicle-status-pill{display:inline-flex;align-items:center;gap:5px;padding:3px 10px;border-radius:999px;font-size:11px;font-weight:800;}
+.vs-ok{background:rgba(34,197,94,.15);color:var(--green);border:1px solid rgba(34,197,94,.3);}
+.vs-garage{background:rgba(239,68,68,.15);color:var(--red);border:1px solid rgba(239,68,68,.3);}
+.vs-unavail{background:rgba(245,158,11,.15);color:var(--amber);border:1px solid rgba(245,158,11,.3);}
+.service-row{display:flex;align-items:center;gap:10px;padding:9px 12px;border-bottom:1px solid var(--border);}
+.service-row:last-child{border-bottom:none;}
+.service-date{font-size:11px;font-weight:800;color:var(--amber);white-space:nowrap;width:72px;flex-shrink:0;}
+.service-body{flex:1;min-width:0;}
+.service-reason{font-size:12px;font-weight:800;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.service-meta{font-size:10px;color:var(--txt2);margin-top:1px;}
+.doc-row{display:flex;align-items:center;gap:10px;padding:9px 12px;border-bottom:1px solid var(--border);}
+.doc-row:last-child{border-bottom:none;}
+.doc-icon{width:32px;height:32px;border-radius:8px;background:rgba(59,130,246,.1);display:flex;align-items:center;justify-content:center;font-size:16px;flex-shrink:0;}
+.doc-body{flex:1;min-width:0;}
+.doc-name{font-size:12px;font-weight:800;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.doc-meta{font-size:10px;color:var(--txt2);margin-top:1px;}
+.copy-btn{padding:3px 9px;border-radius:6px;background:var(--ink3);border:1px solid var(--border2);color:var(--txt2);font-size:10px;font-weight:800;cursor:pointer;white-space:nowrap;flex-shrink:0;}
+.copy-btn:active{background:var(--ink2);}
+/* ── USER SENSITIVE FIELDS ── */
+.sensitive-field-row{display:flex;align-items:center;gap:8px;padding:9px 12px;background:var(--ink3);border:1px solid var(--border2);border-radius:8px;margin-bottom:8px;}
+.sensitive-field-label{font-size:10px;font-weight:800;color:var(--txt3);letter-spacing:.8px;text-transform:uppercase;width:60px;flex-shrink:0;}
+.sensitive-field-val{flex:1;font-size:13px;font-weight:800;color:var(--txt);}
+
 /* REMEMBER ME TOGGLE */
 .remember-me-row{display:flex;align-items:center;gap:10px;width:100%;max-width:320px;margin-top:10px;padding:10px 12px;background:var(--ink3);border:1px solid var(--border2);border-radius:10px;cursor:pointer;user-select:none;}
 .remember-me-row input[type=checkbox]{width:18px;height:18px;accent-color:var(--amber);cursor:pointer;flex-shrink:0;}
@@ -1066,12 +1087,44 @@ body.light-mode .swipe-inner .trip-block{ background: #d1dce8 !important; }
       <div class="field-row">
         <div class="field">
           <label>שיוך לפלגה</label>
-          <input type="text" id="vPlatoonId" placeholder="שם / מזהה פלגה...">
+          <select id="vPlatoonSelect" onchange="onVehiclePlatoonChange()">
+            <option value="">— ללא פלגה —</option>
+          </select>
+          <input type="text" id="vPlatoonId" placeholder="שם פלגה ידני..." style="display:none;margin-top:6px;width:100%;padding:10px 12px;border-radius:8px;background:var(--ink3);border:1px solid var(--border2);color:var(--txt);font-size:14px;outline:none;">
         </div>
         <div class="field">
           <label>גורם חוץ-פלגתי</label>
           <input type="text" id="vExternalUnit" placeholder="יחידה חיצונית...">
         </div>
+      </div>
+      <!-- סטטוס רכב -->
+      <div class="field">
+        <label>סטטוס רכב</label>
+        <select id="vStatus" onchange="onVehicleStatusChange()">
+          <option value="ok">✅ תקין</option>
+          <option value="garage">🔧 במוסך</option>
+          <option value="unavail">🚫 לא זמין</option>
+        </select>
+      </div>
+      <!-- פרטי מוסך — מוצג רק כשסטטוס=garage -->
+      <div id="vGarageFields" style="display:none;background:rgba(239,68,68,.06);border:1px solid rgba(239,68,68,.2);border-radius:10px;padding:12px;margin-bottom:10px;">
+        <div style="font-size:11px;font-weight:800;color:var(--red);margin-bottom:8px;">🔧 פרטי כניסה למוסך</div>
+        <div class="field"><label>סיבת כניסה</label><input type="text" id="vGarageReason" placeholder="תיאור הבעיה..."></div>
+        <div class="field-row">
+          <div class="field"><label>תאריך כניסה</label><input type="date" id="vGarageIn"></div>
+          <div class="field"><label>תאריך יציאה (אם ידוע)</label><input type="date" id="vGarageOut"></div>
+        </div>
+        <div class="field">
+          <label>רכב חלופי</label>
+          <select id="vSubstituteId">
+            <option value="">— ללא רכב חלופי —</option>
+          </select>
+        </div>
+      </div>
+      <!-- תחזוקה -->
+      <div class="field-row">
+        <div class="field"><label>קילומטראז' נוכחי</label><input type="number" id="vKm" placeholder="0" min="0"></div>
+        <div class="field"><label>טיפול הבא (ק"מ)</label><input type="number" id="vNextServiceKm" placeholder="10000" min="0"></div>
       </div>
       <div class="field">
         <label>אייקון / תמונת רכב</label>
@@ -1113,6 +1166,71 @@ body.light-mode .swipe-inner .trip-block{ background: #d1dce8 !important; }
   </div>
 </div>
 
+<!-- VEHICLE DETAIL MODAL -->
+<div class="modal-overlay" id="vehicleDetailModal">
+  <div class="modal">
+    <div class="modal-handle"></div>
+    <div class="modal-head">
+      <span id="vDetailTitle">פרטי רכב</span>
+      <button class="modal-close" onclick="closeModal('vehicleDetailModal')">✕</button>
+    </div>
+    <div class="modal-body" id="vDetailBody"></div>
+  </div>
+</div>
+
+<!-- VEHICLE SERVICE HISTORY MODAL -->
+<div class="modal-overlay" id="vehicleServiceModal">
+  <div class="modal">
+    <div class="modal-handle"></div>
+    <div class="modal-head">
+      <span>📋 היסטוריית טיפולים</span>
+      <button class="modal-close" onclick="closeModal('vehicleServiceModal')">✕</button>
+    </div>
+    <div class="modal-body" id="vehicleServiceBody">
+      <div class="empty"><p>טוען...</p></div>
+    </div>
+  </div>
+</div>
+
+<!-- UPLOAD DOCUMENT MODAL -->
+<div class="modal-overlay" id="vehicleDocModal">
+  <div class="modal">
+    <div class="modal-handle"></div>
+    <div class="modal-head">
+      <span>📎 הוסף מסמך לרכב</span>
+      <button class="modal-close" onclick="closeModal('vehicleDocModal')">✕</button>
+    </div>
+    <div class="modal-body">
+      <div class="field">
+        <label>סוג מסמך</label>
+        <select id="docType">
+          <option value="license">📄 רישיון רכב</option>
+          <option value="test">🔍 הזמנה לטסט</option>
+          <option value="insurance">🛡️ ביטוח</option>
+          <option value="other">📎 אחר</option>
+        </select>
+      </div>
+      <div class="field">
+        <label>שם מסמך</label>
+        <input type="text" id="docName" placeholder="למשל: רישיון 2025...">
+      </div>
+      <div class="field">
+        <label>קובץ (תמונה / PDF)</label>
+        <label class="upload-photo-btn" for="docFileInput" style="margin-top:4px;">
+          📁 בחר קובץ
+          <input type="file" id="docFileInput" accept="image/*,application/pdf" style="display:none;" onchange="onDocFileSelected(this)">
+        </label>
+        <div id="docFilePreview" style="margin-top:8px;font-size:12px;color:var(--green);"></div>
+      </div>
+      <input type="hidden" id="docVehicleId">
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost" style="flex:1;" onclick="closeModal('vehicleDocModal')">ביטול</button>
+      <button class="btn btn-amber" style="flex:1;" id="docUploadBtn" onclick="uploadVehicleDoc()">📤 העלה</button>
+    </div>
+  </div>
+</div>
+
 <!-- EmailJS for real OTP emails -->
 <script src="https://cdn.jsdelivr.net/npm/@emailjs/browser@4/dist/email.min.js" crossorigin="anonymous"></script>
 <!-- Firebase Storage for profile photos -->
@@ -1147,7 +1265,7 @@ const db = firebase.database();
 const r  = p => db.ref(p);
 
 // ══════ APP VERSION ══════
-const APP_VERSION = '30';
+const APP_VERSION = '32';
 const APP_BUILD   = '2026-04-22';
 
 function publishVersion(){
@@ -1443,6 +1561,8 @@ function finishLogin(){
   ub.style.display='none'; ub.classList.remove('show'); undoStack=[];
   document.getElementById('themeBtn').textContent=lightMode?'☀️':'🌙';
   goOnline(currentUser); startListeners(); startVersionListener(); publishVersion();
+  // בדוק משתמשים זמניים שפג תוקפם
+  if(currentUser.role==='admin') checkExpiredGuests();
   if(isGuest) toast(`ברוך הבא ${currentUser.name}! 👁️ צפייה בלבד`);
   else toast(`ברוך הבא, ${currentUser.name}! 👋`);
 }
@@ -1480,6 +1600,7 @@ function startListeners(){
     refreshCommanderDropdown();
   });
   startHierarchyListener();
+  _refreshUsersCache(); // ← מבטיח ש-_hAllUsers תמיד עדכני
 }
 
 // ══════ AUTO-LOGIN (Remember Me) ══════
@@ -2440,7 +2561,14 @@ function renderSettings(){
         <span class="badge badge-blue" style="margin-top:4px;">נהג</span>
       </div>
       <button class="btn btn-ghost btn-sm" style="margin-right:auto;" onclick="openSelfEdit()">✏️</button>
-    </div>`;
+    </div>
+    ${currentUser.idNumber||currentUser.personalNumber?`
+    <div style="padding:10px 16px 4px;border-top:1px solid var(--border);">
+      <div style="font-size:10px;font-weight:800;color:var(--txt3);letter-spacing:1px;margin-bottom:6px;">🔐 פרטים אישיים (גלוי לך בלבד)</div>
+      ${currentUser.idNumber?`<div class="sensitive-field-row"><span class="sensitive-field-label">ת"ז</span><span class="sensitive-field-val">${currentUser.idNumber}</span><button class="copy-btn" onclick="navigator.clipboard.writeText('${currentUser.idNumber}');toast('הועתק ✓')">העתק</button></div>`:''}
+      ${currentUser.personalNumber?`<div class="sensitive-field-row"><span class="sensitive-field-label">מס' אישי</span><span class="sensitive-field-val">${currentUser.personalNumber}</span><button class="copy-btn" onclick="navigator.clipboard.writeText('${currentUser.personalNumber}');toast('הועתק ✓')">העתק</button></div>`:''}
+    </div>`:''}
+    `;
     return;
   }
   // ── drivers ──
@@ -2467,12 +2595,17 @@ function renderSettings(){
     const catBadge=v.category?`<span class="badge badge-purple" style="margin-right:4px;">${CATS[v.category]||v.category}</span>`:'';
     const platoonBadge=v.platoonId?`<span class="badge badge-blue" style="margin-right:2px;">פלגה: ${v.platoonId}</span>`:'';
     const extBadge=v.externalUnit?`<span class="badge badge-teal" style="margin-right:2px;">חוץ: ${v.externalUnit}</span>`:'';
+    const kmLeft=v.nextServiceKm&&v.km?(v.nextServiceKm-v.km):null;
+    const kmWarn=kmLeft!==null&&kmLeft<500;
     return`<div class="list-item" style="flex-wrap:wrap;gap:4px;">
       ${avatarHtml(v.icon||'🚌',40,'10px')}
-      <div class="li-body"><strong>${v.name}</strong><small>${v.plate||''} · ${v.seats||'?'} מושבים</small>
-        <div style="display:flex;flex-wrap:wrap;gap:2px;margin-top:3px;">${catBadge}${platoonBadge}${extBadge}</div>
+      <div class="li-body">
+        <strong>${v.name}</strong>
+        <small>${v.plate||''} · ${v.seats||'?'} מושבים${v.km?' · '+v.km.toLocaleString()+'ק"מ':''}</small>
+        <div style="display:flex;flex-wrap:wrap;gap:2px;margin-top:3px;">${vehicleStatusHtml(v.status)}${catBadge}${platoonBadge}${extBadge}${kmWarn?'<span class="badge badge-red">⚠️ טיפול קרוב</span>':''}</div>
       </div>
       <div class="li-actions">
+        <button class="btn btn-ghost btn-sm" onclick="openVehicleDetail('${v.id}')">📋</button>
         <button class="btn btn-ghost btn-sm" onclick="editVehicleUI('${v.id}')">✏️</button>
         <button class="btn btn-danger btn-sm" onclick="confirmDeleteVehicle('${v.id}')">🗑️</button>
       </div>
@@ -2509,6 +2642,7 @@ function renderSettings(){
             <div>
               <div style="font-weight:800;font-size:14px;">${u.name}${u.alsoDriver?'<span style="font-size:10px;color:var(--teal);margin-right:4px;"> +נהג</span>':''}</div>
               <div style="font-size:11px;color:var(--txt2);">${u.phone||u.email||''} · ${u.role==='admin'?'🛡️ מנהל':'🚗 נהג'}${u.jobTitle?' · <b style="color:var(--amber)">'+u.jobTitle+'</b>':''}</div>
+              ${u.idNumber||u.personalNumber?`<div style="font-size:10px;color:var(--txt3);margin-top:2px;">${u.idNumber?'🪪 '+u.idNumber:''}${u.personalNumber?' · 🔢'+u.personalNumber:''}</div>`:''}
               ${renderUserTagPills(u.tags,'')}
             </div>
           </div>
@@ -2532,6 +2666,18 @@ function renderSettings(){
             </div>
             <button class="btn btn-danger btn-sm" onclick="confirmDeleteGuest('${u.id}')">🗑️</button>
           </div>`;}).join(''):'<div class="empty" style="padding:12px;"><p>אין משתמשים זמניים</p></div>';
+        // הצג ארכיון
+        r('guestArchive').once('value').then(snap=>{
+          const archived=Object.values(snap.val()||{}).sort((a,b)=>(b.archivedAt||0)-(a.archivedAt||0)).slice(0,5);
+          if(!archived.length) return;
+          const gcEl=document.getElementById('guestsCard'); if(!gcEl) return;
+          gcEl.innerHTML+='<div style="padding:8px 12px;font-size:10px;font-weight:800;color:var(--txt3);letter-spacing:1px;border-top:1px solid var(--border);">📁 ארכיון (פג תוקף)</div>'
+            +archived.map(u=>`<div class="list-item">
+              <div style="width:36px;height:36px;border-radius:10px;background:rgba(100,100,100,.1);display:flex;align-items:center;justify-content:center;font-size:16px;flex-shrink:0;">🗃️</div>
+              <div class="li-body"><strong style="color:var(--txt2);">${u.name}</strong><small>הוסר ${new Date(u.archivedAt).toLocaleDateString('he-IL')}</small></div>
+              <button class="btn btn-ghost btn-sm" onclick="openQuickAddGuest('${u.id}')">⚡ הוסף מחדש</button>
+            </div>`).join('');
+        });
       }
     }
   }).catch(e=>{if(uc)uc.innerHTML=`<div class="empty"><p>שגיאה: ${e.message}</p></div>`;});
@@ -2583,6 +2729,8 @@ function openAddUser(){
   document.getElementById('uPassStrengthBar').style.background='var(--border2)';
   setAvatarPicker('uAvatarPreview','uAvatarPreviewInner','uAvatar','uAvatarGrid','👤',PEOPLE_AVATARS);
   const jt0=document.getElementById('uJobTitle');if(jt0)jt0.value='';
+  const idn0=document.getElementById('uIdNumber');if(idn0)idn0.value='';
+  const pn0=document.getElementById('uPersonalNumber');if(pn0)pn0.value='';
   buildTagPillRow('uTagPillRow','uTags','');
   openModal('userModal');
 }
@@ -2605,6 +2753,8 @@ function openEditUser(id){
     document.getElementById('uPassStrengthBar').style.background='var(--border2)';
     setAvatarPicker('uAvatarPreview','uAvatarPreviewInner','uAvatar','uAvatarGrid',u.avatar||'👤',PEOPLE_AVATARS);
     const jt1=document.getElementById('uJobTitle');if(jt1)jt1.value=u.jobTitle||'';
+    const idn=document.getElementById('uIdNumber');if(idn)idn.value=u.idNumber||'';
+    const pn=document.getElementById('uPersonalNumber');if(pn)pn.value=u.personalNumber||'';
     buildTagPillRow('uTagPillRow','uTags',u.tags||'');
     openModal('userModal');
   });
@@ -2617,6 +2767,12 @@ function openSelfEdit(){
   document.getElementById('uNameSelf').value=currentUser.name||'';
   document.getElementById('uEmailSelf').value=currentUser.email||'';
   document.getElementById('uPhoneSelf').value=currentUser.phone||'';
+  // load sensitive fields — fetch fresh from DB
+  r(`users/${currentUser.id}`).once('value').then(snap=>{
+    const u=snap.val()||{};
+    const idEl=document.getElementById('uIdSelf'); if(idEl) idEl.value=u.idNumber||'';
+    const pnEl=document.getElementById('uPersonalSelf'); if(pnEl) pnEl.value=u.personalNumber||'';
+  });
   openModal('userModal');
 }
 async function saveUser(){
@@ -2625,9 +2781,18 @@ async function saveUser(){
   if(isSelf){
     const name=document.getElementById('uNameSelf').value.trim();
     if(!name){toast('הכנס שם');return;}
-    const updates={name,email:document.getElementById('uEmailSelf').value.trim(),phone:document.getElementById('uPhoneSelf').value.trim()};
+    const updates={
+      name,
+      email:document.getElementById('uEmailSelf').value.trim(),
+      phone:document.getElementById('uPhoneSelf').value.trim(),
+      idNumber:(document.getElementById('uIdSelf')?.value||'').trim(),
+      personalNumber:(document.getElementById('uPersonalSelf')?.value||'').trim(),
+    };
     r(`users/${editId}`).update(updates).then(()=>{
-      Object.assign(currentUser,updates);toast('עודכן ✓');closeModal('userModal');renderSettings();
+      Object.assign(currentUser,updates);
+      // עדכן localStorage אם "זכור אותי" פעיל
+      if(localStorage.getItem('rememberMe')==='true') localStorage.setItem('savedUser',JSON.stringify(currentUser));
+      toast('עודכן ✓');closeModal('userModal');renderSettings();
     }).catch(e=>toast('שגיאה: '+e.message));
     return;
   }
@@ -2641,7 +2806,9 @@ async function saveUser(){
   if(!name||(!phone&&!email)){toast('מלא שם וטלפון/מייל');return;}
   const jobTitle=(document.getElementById('uJobTitle')?.value||'').trim();
   const tags=document.getElementById('uTags')?.value||'';
-  const data={name,phone,email,role,alsoDriver,status:'active',avatar,jobTitle,tags};
+  const idNumber=(document.getElementById('uIdNumber')?.value||'').trim();
+  const personalNumber=(document.getElementById('uPersonalNumber')?.value||'').trim();
+  const data={name,phone,email,role,alsoDriver,status:'active',avatar,jobTitle,tags,idNumber,personalNumber};
   // Password: required for new user, optional for edit
   if(newPass){
     const v=validatePassword(newPass);
@@ -2772,8 +2939,14 @@ function saveDriver(){
 function openVehicleModal(){
   document.getElementById('vehicleModalTitle').textContent='רכב חדש';
   document.getElementById('vEditId').value='';
-  ['vName','vPlate','vSeats','vPlatoonId','vExternalUnit'].forEach(id=>document.getElementById(id).value='');
+  ['vName','vPlate','vSeats','vPlatoonId','vExternalUnit','vKm','vNextServiceKm','vGarageReason','vGarageIn','vGarageOut'].forEach(id=>{
+    const el=document.getElementById(id); if(el) el.value='';
+  });
   const vc=document.getElementById('vCategory'); if(vc) vc.value='';
+  const vs=document.getElementById('vStatus'); if(vs) vs.value='ok';
+  onVehicleStatusChange();
+  populateSubstituteSelect('','');
+  populateVehiclePlatoonDropdown('');
   setAvatarPicker('vIconPreview','vIconPreviewInner','vIcon','vIconGrid','🚌',VEHICLE_ICONS);
   openModal('vehicleModal');
 }
@@ -2786,6 +2959,17 @@ function editVehicleUI(id){
   document.getElementById('vCategory').value=v.category||'';
   document.getElementById('vPlatoonId').value=v.platoonId||'';
   document.getElementById('vExternalUnit').value=v.externalUnit||'';
+  document.getElementById('vStatus').value=v.status||'ok';
+  document.getElementById('vKm').value=v.km||'';
+  document.getElementById('vNextServiceKm').value=v.nextServiceKm||'';
+  // garage fields
+  document.getElementById('vGarageReason').value=v.garageReason||'';
+  document.getElementById('vGarageIn').value=v.garageIn||'';
+  document.getElementById('vGarageOut').value=v.garageOut||'';
+  onVehicleStatusChange();
+  populateVehiclePlatoonDropdown(v.platoonId||'');
+  // רכב חלופי — populate select
+  populateSubstituteSelect(id, v.substituteId||'');
   document.getElementById('vEditId').value=id;
   document.getElementById('vehicleModalTitle').textContent='עריכת רכב';
   setAvatarPicker('vIconPreview','vIconPreviewInner','vIcon','vIconGrid',v.icon||'🚌',VEHICLE_ICONS);
@@ -2795,6 +2979,8 @@ function saveVehicle(){
   const name=document.getElementById('vName').value.trim();
   if(!name){toast('הכנס שם');return;}
   const editId=document.getElementById('vEditId').value;
+  const status=document.getElementById('vStatus')?.value||'ok';
+  const prevStatus = editId&&S.vehicles[editId]?S.vehicles[editId].status:'ok';
   const data={
     name,
     plate:document.getElementById('vPlate').value.trim(),
@@ -2802,15 +2988,267 @@ function saveVehicle(){
     type:document.getElementById('vType').value,
     icon:document.getElementById('vIcon').value||'🚌',
     category:document.getElementById('vCategory')?.value||'',
-    platoonId:document.getElementById('vPlatoonId')?.value.trim()||'',
+    platoonId:getVehiclePlatoonValue(),
     externalUnit:document.getElementById('vExternalUnit')?.value.trim()||'',
+    status,
+    km: parseInt(document.getElementById('vKm')?.value||0)||0,
+    nextServiceKm: parseInt(document.getElementById('vNextServiceKm')?.value||0)||0,
   };
-  const done=msg=>{toast(msg);['vName','vPlate','vSeats'].forEach(id=>document.getElementById(id).value='');document.getElementById('vEditId').value='';document.getElementById('vehicleModalTitle').textContent='רכב חדש';closeModal('vehicleModal');};
-  if(editId) r(`vehicles/${editId}`).update(data).then(()=>done('רכב עודכן ✓')).catch(e=>toast('שגיאה: '+e.message));
-  else{const id=uid();r(`vehicles/${id}`).set({...data,id}).then(()=>done('רכב נוסף ✓')).catch(e=>toast('שגיאה: '+e.message));}
+  // פרטי מוסך
+  if(status==='garage'){
+    data.garageReason = document.getElementById('vGarageReason')?.value.trim()||'';
+    data.garageIn     = document.getElementById('vGarageIn')?.value||'';
+    data.garageOut    = document.getElementById('vGarageOut')?.value||'';
+    data.substituteId = document.getElementById('vSubstituteId')?.value||'';
+  } else {
+    data.garageReason=''; data.garageIn=''; data.garageOut=''; data.substituteId='';
+  }
+
+  const done=(id,msg)=>{
+    toast(msg);
+    // אם עכשיו נכנס למוסך — תעד בהיסטוריה
+    if(status==='garage'&&prevStatus!=='garage'){
+      const histId=uid();
+      r(`vehicleService/${id}/${histId}`).set({
+        id:histId,
+        date:data.garageIn||new Date().toISOString().slice(0,10),
+        reason:data.garageReason||'כניסה למוסך',
+        type:'מוסך',
+        notes:`תאריך יציאה: ${data.garageOut||'לא ידוע'}`,
+        createdAt:Date.now()
+      });
+    }
+    ['vName','vPlate','vSeats','vPlatoonId','vExternalUnit','vKm','vNextServiceKm','vGarageReason','vGarageIn','vGarageOut'].forEach(fid=>{
+      const el=document.getElementById(fid); if(el) el.value='';
+    });
+    document.getElementById('vEditId').value='';
+    document.getElementById('vehicleModalTitle').textContent='רכב חדש';
+    const sf=document.getElementById('vSubstituteId'); if(sf) sf.value='';
+    const vs=document.getElementById('vStatus'); if(vs) vs.value='ok';
+    onVehicleStatusChange();
+    closeModal('vehicleModal');
+  };
+
+  if(editId) r(`vehicles/${editId}`).update(data).then(()=>done(editId,'רכב עודכן ✓')).catch(e=>toast('שגיאה: '+e.message));
+  else{ const id=uid(); r(`vehicles/${id}`).set({...data,id}).then(()=>done(id,'רכב נוסף ✓')).catch(e=>toast('שגיאה: '+e.message)); }
 }
 
-// ══════ COMMENTS ══════
+// ══════ VEHICLE HELPERS ══════
+function onVehiclePlatoonChange(){
+  const sel=document.getElementById('vPlatoonSelect');
+  const txt=document.getElementById('vPlatoonId');
+  if(!sel||!txt) return;
+  if(sel.value==='__other__'){
+    txt.style.display='block'; txt.focus(); txt.value='';
+  } else {
+    txt.style.display='none'; txt.value=sel.value; // store name
+  }
+}
+
+function populateVehiclePlatoonDropdown(currentPlatoonId){
+  const sel=document.getElementById('vPlatoonSelect'); if(!sel) return;
+  const platoons=Object.values(S.hierarchy||{}).map(t=>({id:t.id,name:t.name}));
+  sel.innerHTML='<option value="">— ללא פלגה —</option>'
+    + platoons.map(p=>`<option value="${p.name}">${p.name}</option>`).join('')
+    + '<option value="__other__">✏️ אחר (הזן ידנית)</option>';
+  // בחר את הפלגה הנוכחית
+  if(!currentPlatoonId){ sel.value=''; return; }
+  const match=platoons.find(p=>p.name===currentPlatoonId);
+  if(match){ sel.value=match.name; document.getElementById('vPlatoonId').style.display='none'; }
+  else {
+    sel.value='__other__';
+    const txt=document.getElementById('vPlatoonId');
+    txt.style.display='block'; txt.value=currentPlatoonId;
+  }
+}
+
+// קריאה לפני פתיחת מודאל רכב
+function getVehiclePlatoonValue(){
+  const sel=document.getElementById('vPlatoonSelect');
+  if(!sel) return '';
+  if(sel.value==='__other__') return (document.getElementById('vPlatoonId')?.value||'').trim();
+  return sel.value;
+}
+
+function onVehicleStatusChange(){
+  const status=document.getElementById('vStatus')?.value||'ok';
+  const gf=document.getElementById('vGarageFields');
+  if(gf) gf.style.display=status==='garage'?'block':'none';
+  if(status==='garage'){
+    const gin=document.getElementById('vGarageIn');
+    if(gin&&!gin.value) gin.value=new Date().toISOString().slice(0,10);
+  }
+}
+
+function populateSubstituteSelect(excludeId, selectedId){
+  const sel=document.getElementById('vSubstituteId'); if(!sel) return;
+  sel.innerHTML='<option value="">— ללא רכב חלופי —</option>'
+    + vehicles().filter(v=>v.id!==excludeId&&v.status!=='garage')
+        .map(v=>`<option value="${v.id}" ${selectedId===v.id?'selected':''}>${v.name}${v.plate?' ('+v.plate+')':''}</option>`).join('');
+}
+
+function vehicleStatusHtml(status){
+  const map={ok:'<span class="vehicle-status-pill vs-ok">✅ תקין</span>',garage:'<span class="vehicle-status-pill vs-garage">🔧 במוסך</span>',unavail:'<span class="vehicle-status-pill vs-unavail">🚫 לא זמין</span>'};
+  return map[status||'ok']||map.ok;
+}
+
+// ── Vehicle detail modal ──
+function openVehicleDetail(id){
+  const v=gv(id); if(!v)return;
+  document.getElementById('vDetailTitle').textContent=v.name;
+  const CATS={transport:'🚛 תובלתית',bus:'🚌 אוטובוס',trip:'🏕️ טיולית',special:'⭐ מיוחד'};
+  const catTxt=v.category?CATS[v.category]||v.category:'';
+  const kmLeft=v.nextServiceKm&&v.km?(v.nextServiceKm-v.km):null;
+  const kmWarn=kmLeft!==null&&kmLeft<500;
+  const sub=v.substituteId?gv(v.substituteId):null;
+  document.getElementById('vDetailBody').innerHTML=`
+    <div style="display:flex;align-items:center;gap:14px;margin-bottom:14px;">
+      ${avatarHtml(v.icon||'🚌',52,'14px')}
+      <div>
+        <div style="font-size:17px;font-weight:900;">${v.name}</div>
+        <div style="font-size:12px;color:var(--txt2);">${v.plate||''} · ${v.seats||'?'} מושבים · ${v.type||''}</div>
+        <div style="margin-top:4px;">${vehicleStatusHtml(v.status)}${catTxt?` <span class="badge badge-purple" style="margin-right:4px;">${catTxt}</span>`:''}</div>
+      </div>
+    </div>
+    ${v.platoonId?`<div style="font-size:12px;color:var(--txt2);margin-bottom:4px;">📍 פלגה: <b>${v.platoonId}</b></div>`:''}
+    ${v.externalUnit?`<div style="font-size:12px;color:var(--txt2);margin-bottom:10px;">🏢 יחידה חיצונית: <b>${v.externalUnit}</b></div>`:''}
+    <!-- קילומטראז' -->
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:12px;">
+      <div style="background:var(--ink3);border-radius:10px;padding:10px;text-align:center;">
+        <div style="font-size:18px;font-weight:900;">${(v.km||0).toLocaleString()}</div>
+        <div style="font-size:10px;color:var(--txt3);">ק"מ נוכחי</div>
+      </div>
+      <div style="background:${kmWarn?'rgba(239,68,68,.1)':'var(--ink3)'};border-radius:10px;padding:10px;text-align:center;${kmWarn?'border:1px solid rgba(239,68,68,.3);':''}">
+        <div style="font-size:18px;font-weight:900;color:${kmWarn?'var(--red)':'var(--txt)'};">${kmLeft!==null?kmLeft.toLocaleString():'—'}</div>
+        <div style="font-size:10px;color:var(--txt3);">ק"מ לטיפול</div>
+      </div>
+    </div>
+    <!-- מוסך -->
+    ${v.status==='garage'?`<div style="background:rgba(239,68,68,.06);border:1px solid rgba(239,68,68,.2);border-radius:10px;padding:12px;margin-bottom:12px;">
+      <div style="font-size:11px;font-weight:800;color:var(--red);margin-bottom:6px;">🔧 במוסך כרגע</div>
+      ${v.garageReason?`<div style="font-size:13px;font-weight:700;">${v.garageReason}</div>`:''}
+      ${v.garageIn?`<div style="font-size:11px;color:var(--txt2);margin-top:4px;">📅 כניסה: ${v.garageIn}${v.garageOut?' · יציאה מתוכננת: '+v.garageOut:''}</div>`:''}
+      ${sub?`<div style="font-size:11px;color:var(--teal);margin-top:4px;">🔄 רכב חלופי: <b>${sub.name}</b>${sub.plate?' ('+sub.plate+')':''}</div>`:''}
+    </div>`:''}
+    <!-- כפתורים -->
+    <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px;">
+      <button class="btn btn-ghost btn-sm" onclick="closeModal('vehicleDetailModal');editVehicleUI('${id}')">✏️ עריכה</button>
+      <button class="btn btn-ghost btn-sm" onclick="openVehicleServiceHistory('${id}')">📋 היסטוריית טיפולים</button>
+      <button class="btn btn-ghost btn-sm" onclick="openVehicleDocModal('${id}')">📎 הוסף מסמך</button>
+    </div>
+    <!-- מסמכים -->
+    <div id="vDetailDocs"><div style="font-size:12px;color:var(--txt3);">טוען מסמכים...</div></div>
+  `;
+  // Load docs async
+  r(`vehicleDocs/${id}`).once('value').then(snap=>{
+    const docs=Object.values(snap.val()||{});
+    const el=document.getElementById('vDetailDocs'); if(!el) return;
+    if(!docs.length){ el.innerHTML='<div style="font-size:12px;color:var(--txt3);">אין מסמכים</div>'; return; }
+    const DTYPE={license:'📄 רישיון',test:'🔍 טסט',insurance:'🛡️ ביטוח',other:'📎 אחר'};
+    el.innerHTML=`<div class="sec-title" style="padding:0;margin-bottom:6px;">מסמכים</div>
+      <div class="card" style="margin:0;">${docs.map(d=>`
+        <div class="doc-row">
+          <div class="doc-icon">${(DTYPE[d.type]||'📎').slice(0,2)}</div>
+          <div class="doc-body">
+            <div class="doc-name">${d.name||DTYPE[d.type]||'מסמך'}</div>
+            <div class="doc-meta">${d.uploadedAt?new Date(d.uploadedAt).toLocaleDateString('he-IL'):''}</div>
+          </div>
+          <div style="display:flex;gap:4px;">
+            <a href="${d.url}" target="_blank" class="btn btn-ghost btn-xs">👁️</a>
+            <a href="${d.url}" download class="btn btn-ghost btn-xs">⬇️</a>
+          </div>
+        </div>`).join('')}</div>`;
+  });
+  openModal('vehicleDetailModal');
+}
+
+// ── Service history modal ──
+function openVehicleServiceHistory(vehicleId){
+  const v=gv(vehicleId);
+  document.getElementById('vehicleServiceBody').innerHTML='<div class="empty"><p>טוען...</p></div>';
+  openModal('vehicleServiceModal');
+  r(`vehicleService/${vehicleId}`).once('value').then(snap=>{
+    const records=Object.values(snap.val()||{}).sort((a,b)=>(b.createdAt||0)-(a.createdAt||0));
+    const el=document.getElementById('vehicleServiceBody'); if(!el) return;
+    if(!records.length){ el.innerHTML='<div class="empty"><div class="ei">🔧</div><p>אין היסטוריית טיפולים</p></div>'; return; }
+    el.innerHTML=`<div class="card" style="margin:0;">${records.map(rec=>`
+      <div class="service-row">
+        <div class="service-date">${rec.date||'—'}</div>
+        <div class="service-body">
+          <div class="service-reason">${rec.reason||'טיפול'}</div>
+          <div class="service-meta">${rec.type||''}${rec.notes?' · '+rec.notes:''}</div>
+        </div>
+      </div>`).join('')}</div>
+    <!-- הוסף ידנית -->
+    <div style="margin-top:12px;">
+      <div style="font-size:11px;font-weight:800;color:var(--txt3);margin-bottom:6px;">＋ הוסף רשומת טיפול ידנית</div>
+      <div class="field"><label>תאריך</label><input type="date" id="svcDate" style="width:100%;padding:10px 12px;border-radius:8px;background:var(--ink3);border:1px solid var(--border2);color:var(--txt);font-size:14px;outline:none;"></div>
+      <div class="field"><label>סיבה</label><input type="text" id="svcReason" placeholder="תיאור הטיפול..." style="width:100%;padding:10px 12px;border-radius:8px;background:var(--ink3);border:1px solid var(--border2);color:var(--txt);font-size:14px;outline:none;"></div>
+      <div class="field"><label>סוג</label><input type="text" id="svcType" placeholder="שמן, גלגלים..." style="width:100%;padding:10px 12px;border-radius:8px;background:var(--ink3);border:1px solid var(--border2);color:var(--txt);font-size:14px;outline:none;"></div>
+      <div class="field"><label>הערות</label><input type="text" id="svcNotes" placeholder="הערות נוספות..." style="width:100%;padding:10px 12px;border-radius:8px;background:var(--ink3);border:1px solid var(--border2);color:var(--txt);font-size:14px;outline:none;"></div>
+      <button class="btn btn-amber btn-block" onclick="addServiceRecord('${vehicleId}')">שמור רשומה</button>
+    </div>`;
+  });
+}
+
+function addServiceRecord(vehicleId){
+  const date=document.getElementById('svcDate')?.value||new Date().toISOString().slice(0,10);
+  const reason=document.getElementById('svcReason')?.value.trim();
+  if(!reason){toast('הכנס סיבת טיפול');return;}
+  const type=document.getElementById('svcType')?.value.trim()||'';
+  const notes=document.getElementById('svcNotes')?.value.trim()||'';
+  const id=uid();
+  r(`vehicleService/${vehicleId}/${id}`).set({id,date,reason,type,notes,createdAt:Date.now()}).then(()=>{
+    toast('✓ רשומה נוספה');
+    openVehicleServiceHistory(vehicleId);
+  });
+}
+
+// ── Doc upload ──
+let _docFileData=null;
+function openVehicleDocModal(vehicleId){
+  document.getElementById('docVehicleId').value=vehicleId;
+  document.getElementById('docName').value='';
+  document.getElementById('docFilePreview').textContent='';
+  document.getElementById('docType').value='license';
+  _docFileData=null;
+  closeModal('vehicleDetailModal');
+  openModal('vehicleDocModal');
+}
+
+function onDocFileSelected(input){
+  const file=input.files[0]; if(!file) return;
+  if(file.size>5*1024*1024){toast('קובץ גדול מדי (מקסימום 5MB)');return;}
+  const reader=new FileReader();
+  reader.onload=e=>{ _docFileData={dataUrl:e.target.result,name:file.name,type:file.type}; document.getElementById('docFilePreview').textContent='✓ '+file.name; };
+  reader.readAsDataURL(file);
+}
+
+function uploadVehicleDoc(){
+  const vehicleId=document.getElementById('docVehicleId').value;
+  if(!vehicleId||!_docFileData){toast('בחר קובץ');return;}
+  const btn=document.getElementById('docUploadBtn'); if(btn){btn.textContent='מעלה...';btn.disabled=true;}
+  // שמור כ-base64 ב-Realtime DB (ל-Storage אמיתי יש צורך ב-firebase.storage())
+  const docId=uid();
+  const name=document.getElementById('docName').value.trim()||_docFileData.name;
+  const type=document.getElementById('docType').value;
+  // Store data URL in DB (alternative: firebase.storage() upload)
+  r(`vehicleDocs/${vehicleId}/${docId}`).set({
+    id:docId, name, type,
+    url:_docFileData.dataUrl,
+    mimeType:_docFileData.type,
+    uploadedAt:Date.now()
+  }).then(()=>{
+    if(btn){btn.textContent='📤 העלה';btn.disabled=false;}
+    _docFileData=null;
+    toast('✓ מסמך הועלה');
+    closeModal('vehicleDocModal');
+    openVehicleDetail(vehicleId);
+  }).catch(e=>{
+    if(btn){btn.textContent='📤 העלה';btn.disabled=false;}
+    toast('שגיאה: '+e.message);
+  });
+}
 function openComments(tripId){
   document.getElementById('commentTripId').value=tripId;
   document.getElementById('commentsList').innerHTML='<div style="color:var(--txt3);font-size:13px;text-align:center;padding:12px;">טוען...</div>';
@@ -3120,6 +3558,36 @@ function openAddGuest(){
   openModal('guestModal');
 }
 
+// בדוק ונקה משתמשים זמניים שפג תוקפם — נקרא ב-startListeners
+function checkExpiredGuests(){
+  r('users').once('value').then(snap=>{
+    const users=Object.values(snap.val()||{});
+    const now=Date.now();
+    users.forEach(u=>{
+      if(!u.isGuest||!u.guestExpiry) return;
+      if(now<=u.guestExpiry) return;
+      // פג תוקף — העבר לארכיון ומחק מ-users
+      const archiveData={
+        id:u.id, name:u.name, phone:u.phone||'', email:u.email||'',
+        avatar:u.avatar||'👁️', archivedAt:now,
+        originalExpiry:u.guestExpiry, createdAt:u.createdAt||0
+      };
+      // שמור לארכיון + מחק מ-active users
+      const updates={};
+      updates[`guestArchive/${u.id}`]=archiveData;
+      updates[`users/${u.id}`]=null;
+      db.ref('/').update(updates).then(()=>{
+        // נקה מהיררכיה אם קיים
+        Object.entries(S.hierarchy||{}).forEach(([treeId,tree])=>{
+          Object.values(tree.nodes||{}).filter(n=>n.userId===u.id).forEach(n=>{
+            r(`${HIERARCHY_KEY}/${treeId}/nodes/${n.id}`).remove();
+          });
+        });
+      });
+    });
+  });
+}
+
 async function saveGuest(){
   const name=document.getElementById('guestName').value.trim();
   const pass=document.getElementById('guestPass').value;
@@ -3142,6 +3610,18 @@ async function saveGuest(){
     closeModal('guestModal');
     renderSettings();
   }).catch(e=>toast('שגיאה: '+e.message));
+}
+
+// הוספה מהירה מהארכיון
+function openQuickAddGuest(archivedId){
+  r(`guestArchive/${archivedId}`).once('value').then(snap=>{
+    const u=snap.val(); if(!u){toast('לא נמצא');return;}
+    document.getElementById('guestName').value=u.name||'';
+    document.getElementById('guestPass').value='';
+    document.getElementById('guestExpiry').value='';
+    document.getElementById('guestPassStrBar').style.background='var(--border2)';
+    openModal('guestModal');
+  });
 }
 
 function confirmDeleteGuest(id){
@@ -3329,7 +3809,8 @@ function renderPlatoonList(){
     group.forEach(t=>{
       const nodeCount=Object.keys(t.nodes||{}).length;
       const cmdUser=_getUserById(t.commanderUserId);
-      const cmdName=cmdUser?cmdUser.name:t.commanderUserId||'—';
+      // fallback לשם ששמרנו בעת יצירה
+      const cmdName=cmdUser?cmdUser.name:(t.commanderName||t.commanderUserId||'—');
       const uim=t.unitImage||'🌳';
       const imgHtml=uim.startsWith('data:')?`<img src="${uim}" style="width:36px;height:36px;object-fit:cover;border-radius:8px;">`:`<span style="font-size:24px;">${uim}</span>`;
       html+=`<div class="htree-row" style="margin-bottom:6px;cursor:pointer;border-radius:var(--r);" onclick="enterTree('${t.id}')">
@@ -3378,7 +3859,8 @@ function renderHierarchyTree(){
   }
   const nodeCount=Object.keys(tree.nodes||{}).length;
   const cmdUser=_getUserById(tree.commanderUserId);
-  if(metaEl) metaEl.textContent=`מפקד: ${cmdUser?cmdUser.name:'—'} · ${nodeCount} אנשים`;
+  const cmdName=cmdUser?cmdUser.name:(tree.commanderName||tree.commanderUserId||'—');
+  if(metaEl) metaEl.textContent=`מפקד: ${cmdName} · ${nodeCount} אנשים`;
   if(actEl)  actEl.style.display=isAdmin()?'flex':'none';
 
   const {visibleNodeIds,canEdit}=getTreeAccessForCurrentUser(_activeTreeId);
@@ -3403,6 +3885,34 @@ function renderHierarchyTree(){
   } else {
     html=rootNodes.map(n=>renderHNode(n,_activeTreeId,visibleNodeIds,canEdit,0)).join('');
   }
+
+  // ── רכבי הפלגה ──
+  const tree=S.hierarchy[_activeTreeId];
+  const treeName=((tree&&tree.name)||'').toLowerCase().trim();
+  const platoonVehicles=vehicles().filter(v=>{
+    if(!v.platoonId) return false;
+    const pid=v.platoonId.toLowerCase().trim();
+    // מחפש לפי שם *או* לפי ID הפלגה
+    return pid===treeName || v.platoonId===_activeTreeId;
+  });
+  if(platoonVehicles.length){
+    const STATUS_HTML={ok:'<span class="vehicle-status-pill vs-ok" style="font-size:9px;">✅</span>',garage:'<span class="vehicle-status-pill vs-garage" style="font-size:9px;">🔧</span>',unavail:'<span class="vehicle-status-pill vs-unavail" style="font-size:9px;">🚫</span>'};
+    html+=`<div style="margin-top:14px;padding-bottom:4px;">
+      <div style="font-size:10px;font-weight:800;color:var(--txt3);letter-spacing:1px;margin-bottom:6px;">🚌 רכבי הפלגה (${platoonVehicles.length})</div>
+      <div class="card" style="margin:0;overflow:hidden;">
+        ${platoonVehicles.map(v=>`
+          <div class="list-item" onclick="openVehicleDetail('${v.id}')">
+            ${avatarHtml(v.icon||'🚌',34,'8px')}
+            <div class="li-body">
+              <strong style="font-size:13px;">${v.name}</strong>
+              <small>${v.plate||'ללא לוחית'} · ${v.seats||'?'} מושבים</small>
+            </div>
+            ${STATUS_HTML[v.status||'ok']||STATUS_HTML.ok}
+          </div>`).join('')}
+      </div>
+    </div>`;
+  }
+
   cont.innerHTML=html;
 }
 
@@ -3540,12 +4050,25 @@ function renderInlineDriverPanel(userId){
       <div class="hdp-route">${t.from} → ${t.to}</div>
       <span class="badge ${(SM[t.status||'pending']||SM.pending).b}" style="font-size:9px;">${(SM[t.status||'pending']||SM.pending).l}</span>
     </div>`;
+
+  // ── פרטים רגישים — גלוי למפקד/מנהל בלבד ──
+  const canSeeSensitive = isAdmin() || hasCommanderTag(currentUser);
+  const user = _getUserById(userId);
+  const sensitiveHtml = (canSeeSensitive && user && (user.idNumber||user.personalNumber))
+    ? `<div style="margin-top:8px;padding-top:8px;border-top:1px solid var(--border);">
+        <div style="font-size:9px;font-weight:800;color:var(--txt3);letter-spacing:.8px;margin-bottom:4px;">🔐 פרטים אישיים</div>
+        ${user.idNumber?`<div class="sensitive-field-row" style="padding:6px 8px;margin-bottom:4px;"><span class="sensitive-field-label">ת"ז</span><span class="sensitive-field-val" style="font-size:12px;">${user.idNumber}</span><button class="copy-btn" onclick="event.stopPropagation();navigator.clipboard.writeText('${user.idNumber}');toast('הועתק ✓')">העתק</button></div>`:''}
+        ${user.personalNumber?`<div class="sensitive-field-row" style="padding:6px 8px;"><span class="sensitive-field-label">מס' אישי</span><span class="sensitive-field-val" style="font-size:12px;">${user.personalNumber}</span><button class="copy-btn" onclick="event.stopPropagation();navigator.clipboard.writeText('${user.personalNumber}');toast('הועתק ✓')">העתק</button></div>`:''}
+      </div>`
+    : '';
+
   return`
     <div class="htree-driver-panel" style="margin-top:4px;margin-bottom:6px;">
       <div class="hdp-title">📅 היום</div>
       ${todayT.length?todayT.map(row).join(''):'<div style="font-size:12px;color:var(--txt3);padding:2px 0;">אין נסיעות היום</div>'}
       ${upcoming.length?`<div class="hdp-title" style="margin-top:8px;">⏭ קרוב</div>${upcoming.map(row).join('')}`:''}
       ${(isAdmin()||hasCommanderTag(currentUser))?`<button class="btn btn-amber btn-sm btn-block" style="margin-top:8px;" onclick="event.stopPropagation();newTripForDriverById('${drv.id}')">＋ נסיעה חדשה</button>`:''}
+      ${sensitiveHtml}
     </div>`;
 }
 
@@ -3596,7 +4119,8 @@ function openCreatePlatoon(){
   const prev=document.getElementById('unitImgPreview'); if(prev) prev.innerHTML='🌳';
   buildUnitEmojiGrid('🌳');
   _hSelectedCmdId=null;
-  _loadUsersForSearch();
+  // נטען users אם המטמון ריק
+  if(!_hAllUsers.length) _loadUsersForSearch();
   openModal('hPlatoonModal');
 }
 
@@ -3604,13 +4128,24 @@ function openEditPlatoon(treeId){
   const tree=S.hierarchy[treeId]; if(!tree) return;
   _editNodeState={mode:'editPlatoon',treeId};
   document.getElementById('hPlatoonName').value=tree.name||'';
+  document.getElementById('hPlatoonMagama').value=tree.magama||'';
   document.getElementById('hPlatoonCmdSearch').value='';
   document.getElementById('hPlatoonCmdResults').innerHTML='';
   _hSelectedCmdId=tree.commanderUserId||null;
-  const cmdUser=_getUserById(_hSelectedCmdId);
-  document.getElementById('hPlatoonCmdSelected').innerHTML=cmdUser
-    ?`<div class="hcmd-selected-pill">✅ ${cmdUser.name}</div>`:'';
-  openModal('hPlatoonModal');
+  const uim=tree.unitImage||'🌳';
+  document.getElementById('hPlatoonUnitImg').value=uim;
+  const prev=document.getElementById('unitImgPreview');
+  if(prev) prev.innerHTML=uim.startsWith('data:')?`<img src="${uim}" style="width:100%;height:100%;object-fit:cover;border-radius:10px;">`:`${uim}`;
+  buildUnitEmojiGrid(uim.startsWith('data:')?'🌳':uim);
+  // מציג מפקד קיים — ממתין לcache אם צריך
+  const showCmd=()=>{
+    const cmdUser=_getUserById(_hSelectedCmdId);
+    document.getElementById('hPlatoonCmdSelected').innerHTML=cmdUser
+      ?`<div class="hcmd-selected-pill">✅ ${cmdUser.name}</div>`
+      :(_hSelectedCmdId?`<div class="hcmd-selected-pill" style="background:rgba(239,68,68,.12);border-color:rgba(239,68,68,.3);color:var(--red);">⚠️ משתמש לא נמצא בקאש</div>`:'');
+  };
+  if(_hAllUsers.length>0){ showCmd(); openModal('hPlatoonModal'); }
+  else { _loadUsersForSearch().then(()=>{ showCmd(); openModal('hPlatoonModal'); }); }
 }
 
 let _hSelectedCmdId=null;
@@ -3644,12 +4179,15 @@ function savePlatoon(){
   const unitImage=document.getElementById('hPlatoonUnitImg')?.value||'🌳';
   const magama=(document.getElementById('hPlatoonMagama')?.value||'').trim();
   const {mode,treeId}=_editNodeState;
+  // שמור גם את שם המפקד כ-fallback לתצוגה מהירה
+  const cmdUser=_getUserById(_hSelectedCmdId);
+  const commanderName=cmdUser?cmdUser.name:_hSelectedCmdId;
   if(mode==='createPlatoon'){
     const tid=uid();
-    r(`${HIERARCHY_KEY}/${tid}`).set({id:tid,name,commanderUserId:_hSelectedCmdId,createdAt:Date.now(),nodes:{},unitImage,magama})
-      .then(()=>{toast('פלוגה נוצרה ✓');_activeTreeId=tid;closeModal('hPlatoonModal');});
+    r(`${HIERARCHY_KEY}/${tid}`).set({id:tid,name,commanderUserId:_hSelectedCmdId,commanderName,createdAt:Date.now(),nodes:{},unitImage,magama})
+      .then(()=>{toast('פלוגה נוצרה ✓');_activeTreeId=tid;closeModal('hPlatoonModal');renderHierarchyPage();});
   } else {
-    r(`${HIERARCHY_KEY}/${treeId}`).update({name,commanderUserId:_hSelectedCmdId,unitImage,magama})
+    r(`${HIERARCHY_KEY}/${treeId}`).update({name,commanderUserId:_hSelectedCmdId,commanderName,unitImage,magama})
       .then(()=>{toast('עודכן ✓');closeModal('hPlatoonModal');});
   }
 }
@@ -3663,9 +4201,20 @@ function deletePlatoon(treeId){
 }
 
 // Lazy-load users list when platoon modal opens
+// מחזיר Promise — כל הקוד שצריך את הרשימה ממתין לה
 function _loadUsersForSearch(){
-  r('users').once('value').then(snap=>{
-    _hAllUsers=Object.values(snap.val()||{}).filter(u=>u.status!=='pending'&&!u.isGuest);
+  return r('users').once('value').then(snap=>{
+    _hAllUsers = Object.values(snap.val()||{})
+      .filter(u => u.status !== 'pending' && !u.isGuest && u.name);
+    return _hAllUsers;
+  });
+}
+
+// טעינה גלובלית בעת startListeners — כך _getUserById עובדת תמיד
+function _refreshUsersCache(){
+  r('users').on('value', snap=>{
+    _hAllUsers = Object.values(snap.val()||{})
+      .filter(u => u.status !== 'pending' && !u.isGuest && u.name);
   });
 }
 
@@ -3678,12 +4227,13 @@ function htOpenAddUnder(parentId,treeId){
   _addNodeParentId=parentId;
   _addNodeTreeId=treeId;
   _addNodeSelectedUserId=null;
+  _editNodeState={};
   document.getElementById('hAddNodeSearch').value='';
   document.getElementById('hAddNodeResults').innerHTML='';
   document.getElementById('hAddNodeSelected').innerHTML='';
   document.getElementById('hAddNodeRole').value='driver';
   document.getElementById('hAddNodeLabel').value='';
-  _loadUsersForSearch();
+  if(!_hAllUsers.length) _loadUsersForSearch();
   openModal('hAddNodeModal');
 }
 
@@ -3783,8 +4333,13 @@ function htDeleteNode(nodeId,treeId){
 // ══ HELPERS ══
 function _getUserById(userId){
   if(!userId) return null;
-  // Check Firebase users cache
-  return _hAllUsers.find(u=>u.id===userId)||null;
+  // 1. מחפש במטמון הפעיל
+  const cached = _hAllUsers.find(u=>u.id===userId);
+  if(cached) return cached;
+  // 2. fallback: מחפש ב-drivers (למקרה שהמשתמש הוא נהג שנשמר שם)
+  const drv = S.drivers ? Object.values(S.drivers).find(d=>d.linkedUserId===userId||d.id===userId) : null;
+  if(drv) return {id:userId, name:drv.name, role:'driver'};
+  return null;
 }
 
 function _roleLabel(role,label){
@@ -3887,6 +4442,15 @@ function addDriverNodeToTree(){}
           <label>💼 תפקיד</label>
           <input type="text" id="uJobTitle" placeholder="מפקד, קצין, בקר...">
         </div>
+        <!-- שדות מזהים רגישים -->
+        <div class="field">
+          <label>🪪 תעודת זהות</label>
+          <input type="text" id="uIdNumber" placeholder="000000000" maxlength="9" inputmode="numeric">
+        </div>
+        <div class="field">
+          <label>🔢 מספר אישי</label>
+          <input type="text" id="uPersonalNumber" placeholder="מס' אישי..." maxlength="10" inputmode="numeric">
+        </div>
         <div class="field">
           <label>🏷️ תגים</label>
           <div id="uTagPillRow" class="tag-pill-row"></div>
@@ -3910,6 +4474,8 @@ function addDriverNodeToTree(){}
         <div class="field"><label>שם מלא</label><input type="text" id="uNameSelf" placeholder="שם מלא"></div>
         <div class="field"><label>מייל</label><input type="email" id="uEmailSelf" placeholder="user@example.com"></div>
         <div class="field"><label>טלפון</label><input type="tel" id="uPhoneSelf" placeholder="0501234567"></div>
+        <div class="field"><label>🪪 תעודת זהות</label><input type="text" id="uIdSelf" placeholder="000000000" maxlength="9" inputmode="numeric"></div>
+        <div class="field"><label>🔢 מספר אישי</label><input type="text" id="uPersonalSelf" placeholder="מס' אישי..." maxlength="10" inputmode="numeric"></div>
       </div>
       <input type="hidden" id="uEditId">
     </div>
