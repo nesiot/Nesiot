@@ -69,6 +69,7 @@ body.light-mode .login-input{background:var(--ink2);color:var(--txt);}
 .remember-me-row{display:flex;align-items:center;gap:10px;width:100%;max-width:320px;margin-top:10px;padding:10px 12px;background:var(--ink3);border:1px solid var(--border2);border-radius:10px;cursor:pointer;user-select:none;}
 .remember-me-row input[type=checkbox]{width:18px;height:18px;accent-color:var(--amber);cursor:pointer;flex-shrink:0;}
 .remember-me-row label{font-size:13px;font-weight:700;color:var(--txt2);cursor:pointer;flex:1;}
+@keyframes loginShake{0%,100%{transform:translateX(0)}20%{transform:translateX(-8px)}40%{transform:translateX(8px)}60%{transform:translateX(-5px)}80%{transform:translateX(5px)}}
 
 /* LOGIN ENHANCEMENTS */
 .login-method-tabs{display:flex;border-radius:10px;overflow:hidden;border:1px solid var(--border2);background:var(--ink2);width:100%;max-width:320px;margin-bottom:14px;}
@@ -622,15 +623,20 @@ body.light-mode .swipe-inner .trip-block{ background: #d1dce8 !important; }
   <!-- MAIN LOGIN -->
   <div id="loginMain" style="width:100%;max-width:320px;">
     <p style="font-size:13px;color:var(--txt2);text-align:center;margin-bottom:12px;">כניסה עם שם משתמש, מייל או טלפון</p>
-    <input class="login-input" id="loginIdent" type="text" placeholder="שם / מייל / טלפון" autocomplete="username" style="margin-top:0;">
+    <input class="login-input" id="loginIdent" type="text" placeholder="שם / מייל / טלפון" autocomplete="username" style="margin-top:0;" oninput="clearLoginError()">
     <div style="position:relative;width:100%;max-width:320px;">
-      <input class="login-input" id="loginPass" type="password" placeholder="סיסמה" autocomplete="current-password" style="margin-top:10px;padding-left:44px;">
+      <input class="login-input" id="loginPass" type="password" placeholder="סיסמה" autocomplete="current-password" style="margin-top:10px;padding-left:44px;" oninput="clearLoginError()">
       <button onclick="togglePassVis('loginPass',this)" style="position:absolute;left:12px;top:50%;transform:translateY(-50%);background:none;border:none;cursor:pointer;font-size:18px;color:var(--txt3);">👁</button>
+    </div>
+    <!-- אינדיקטור שגיאה -->
+    <div id="loginError" style="display:none;width:100%;max-width:320px;margin-top:10px;padding:10px 14px;background:rgba(239,68,68,.1);border:1px solid rgba(239,68,68,.35);border-radius:10px;display:none;align-items:center;gap:8px;">
+      <span style="font-size:18px;flex-shrink:0;">⚠️</span>
+      <span id="loginErrorText" style="font-size:13px;font-weight:700;color:#ef4444;"></span>
     </div>
     <button class="login-btn" onclick="doPasswordLogin()">כניסה →</button>
     <div class="remember-me-row" onclick="document.getElementById('rememberMeCheck').click();event.stopPropagation();">
       <input type="checkbox" id="rememberMeCheck" onclick="event.stopPropagation();">
-      <label for="rememberMeCheck" onclick="event.stopPropagation();">זכור אותי במכשיר זה</label>
+      <span style="font-size:13px;font-weight:700;color:var(--txt2);cursor:pointer;">זכור אותי במכשיר זה</span>
     </div>
     <button class="login-link-btn" onclick="showScreen('registerScreen')">👤 משתמש חדש? להרשמה</button>
     <button class="login-link-btn" onclick="showScreen('forgotScreen')" style="margin-top:6px;">🔑 שכחתי סיסמה</button>
@@ -1236,11 +1242,10 @@ body.light-mode .swipe-inner .trip-block{ background: #d1dce8 !important; }
 
 <!-- EmailJS for real OTP emails -->
 <script src="https://cdn.jsdelivr.net/npm/@emailjs/browser@4/dist/email.min.js" crossorigin="anonymous"></script>
-<!-- Firebase Storage for profile photos -->
-<script src="https://cdnjs.cloudflare.com/ajax/libs/firebase/9.23.0/firebase-storage-compat.min.js"></script>
-<!-- Firebase compat SDK (works without module imports) -->
+<!-- Firebase compat SDK — חובה: app תמיד ראשון -->
 <script src="https://cdnjs.cloudflare.com/ajax/libs/firebase/9.23.0/firebase-app-compat.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/firebase/9.23.0/firebase-database-compat.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/firebase/9.23.0/firebase-storage-compat.min.js"></script>
 <script>
 // ══════ EMAILJS CONFIG ══════
 // הגדר את הפרטים שלך מ-emailjs.com (חינמי עד 200 מיילים/חודש)
@@ -1249,8 +1254,8 @@ const EJS = {
   templateId: 'template_xd4e2nf',
   publicKey: 'FsBbZivpXmzdBL7bd',
 };
-// אתחול EmailJS פעם אחת
-emailjs.init(EJS.publicKey);
+// אתחול EmailJS — עטוף ב-try-catch כדי שכשל CDN לא יקרוס את כל הסקריפט
+try { emailjs.init(EJS.publicKey); } catch(e) { console.warn('EmailJS לא נטען:', e); }
 // SMS דרך Twilio / MessageBird / Vonage – נדרש backend
 // לצורך demo: הקוד מוצג בהודעה כשאין SMS API
 
@@ -1413,12 +1418,19 @@ function showScreen(id){
 }
 
 async function doPasswordLogin(){
-  const ident=document.getElementById('loginIdent').value.trim();
-  const pass=document.getElementById('loginPass').value;
+  const identEl=document.getElementById('loginIdent');
+  const passEl=document.getElementById('loginPass');
+  const ident=identEl.value.trim();
+  const pass=passEl.value;
   const rememberMe=document.getElementById('rememberMeCheck')?.checked||false;
-  if(!ident||!pass){toast('הכנס פרטי כניסה');return;}
+
+  if(!ident||!pass){ showLoginError('נא להזין שם משתמש וסיסמה'); return; }
+
+  const btn=document.querySelector('#loginMain .login-btn');
+  if(btn){ btn.textContent='מתחבר...'; btn.disabled=true; }
 
   r('users').once('value').then(async snap=>{
+    if(btn){ btn.textContent='כניסה →'; btn.disabled=false; }
     const users=Object.values(snap.val()||{});
     const normIdent=normalizePhone(ident);
     const found=users.find(u=>
@@ -1428,19 +1440,17 @@ async function doPasswordLogin(){
         (u.phone&&normalizePhone(u.phone)===normIdent)
       )
     );
-    if(!found){toast('משתמש לא נמצא 🔒');return;}
-    // Guest expiry check
+    if(!found){ showLoginError('שם המשתמש לא נמצא במערכת 🔒', 'ident'); return; }
     if(found.isGuest&&found.guestExpiry&&Date.now()>found.guestExpiry){
-      toast('תוקף הגישה הזמנית פג ❌');return;
+      showLoginError('תוקף הגישה הזמנית פג ❌'); return;
     }
-    if(!found.passwordHash){toast('לא הוגדרה סיסמה – פנה למנהל');return;}
+    if(!found.passwordHash){ showLoginError('לא הוגדרה סיסמה – פנה למנהל'); return; }
     const hashed=await hashPass(pass);
-    if(hashed!==found.passwordHash){toast('סיסמה שגויה ❌');return;}
+    if(hashed!==found.passwordHash){ showLoginError('סיסמה שגויה ❌', 'pass'); return; }
     currentUser={id:found.id,name:found.name,role:found.role,
       phone:found.phone||'',email:found.email||'',
       alsoDriver:!!found.alsoDriver,avatar:found.avatar||'👤',
       isGuest:!!found.isGuest};
-    // ── Remember Me: שמור/מחק session מקומי ──
     if(rememberMe){
       localStorage.setItem('rememberMe','true');
       localStorage.setItem('savedUser',JSON.stringify(currentUser));
@@ -1448,8 +1458,37 @@ async function doPasswordLogin(){
       localStorage.removeItem('rememberMe');
       localStorage.removeItem('savedUser');
     }
+    clearLoginError();
     finishLogin();
-  }).catch(()=>toast('שגיאת חיבור'));
+  }).catch(()=>{
+    if(btn){ btn.textContent='כניסה →'; btn.disabled=false; }
+    showLoginError('שגיאת חיבור – נסה שוב');
+  });
+}
+
+function showLoginError(msg, field){
+  // הצג הודעת שגיאה
+  const errDiv=document.getElementById('loginError');
+  const errTxt=document.getElementById('loginErrorText');
+  if(errDiv){ errDiv.style.display='flex'; }
+  if(errTxt){ errTxt.textContent=msg; }
+  // צבע גבול על השדה הרלוונטי
+  const identEl=document.getElementById('loginIdent');
+  const passEl=document.getElementById('loginPass');
+  if(identEl) identEl.style.borderColor = field==='ident' ? '#ef4444' : 'var(--border2)';
+  if(passEl)  passEl.style.borderColor  = field==='pass'  ? '#ef4444' : 'var(--border2)';
+  // אנימציית רעידה
+  const wrap=document.getElementById('loginMain');
+  if(wrap){ wrap.style.animation='none'; void wrap.offsetWidth; wrap.style.animation='loginShake .4s ease'; }
+}
+
+function clearLoginError(){
+  const errDiv=document.getElementById('loginError');
+  if(errDiv) errDiv.style.display='none';
+  const identEl=document.getElementById('loginIdent');
+  const passEl=document.getElementById('loginPass');
+  if(identEl) identEl.style.borderColor='';
+  if(passEl)  passEl.style.borderColor='';
 }
 
 // ══════ FORGOT / RESET PASSWORD ══════
@@ -3890,7 +3929,7 @@ function renderHierarchyTree(){
   }
 
   // ── רכבי הפלגה ──
-  const tree=S.hierarchy[_activeTreeId];
+  // tree is already declared above (S.hierarchy[_activeTreeId])
   const treeName=((tree&&tree.name)||'').toLowerCase().trim();
   const platoonVehicles=vehicles().filter(v=>{
     if(!v.platoonId) return false;
