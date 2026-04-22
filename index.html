@@ -628,10 +628,10 @@ body.light-mode .swipe-inner .trip-block{ background: #d1dce8 !important; }
       <button onclick="togglePassVis('loginPass',this)" style="position:absolute;left:12px;top:50%;transform:translateY(-50%);background:none;border:none;cursor:pointer;font-size:18px;color:var(--txt3);">👁</button>
     </div>
     <button class="login-btn" onclick="doPasswordLogin()">כניסה →</button>
-    <label class="remember-me-row" for="rememberMeCheck">
-      <input type="checkbox" id="rememberMeCheck">
-      <label for="rememberMeCheck">זכור אותי במכשיר זה</label>
-    </label>
+    <div class="remember-me-row" onclick="document.getElementById('rememberMeCheck').click();event.stopPropagation();">
+      <input type="checkbox" id="rememberMeCheck" onclick="event.stopPropagation();">
+      <label for="rememberMeCheck" onclick="event.stopPropagation();">זכור אותי במכשיר זה</label>
+    </div>
     <button class="login-link-btn" onclick="showScreen('registerScreen')">👤 משתמש חדש? להרשמה</button>
     <button class="login-link-btn" onclick="showScreen('forgotScreen')" style="margin-top:6px;">🔑 שכחתי סיסמה</button>
     <button class="login-link-btn" onclick="showSuperAdmin()" style="margin-top:4px;color:var(--txt3);border-color:transparent;font-size:11px;">⚙️ כניסת מנהל ראשי</button>
