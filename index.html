@@ -38,6 +38,11 @@ body.light-mode .search-bar input{background:var(--ink3);color:var(--txt);}
 body.light-mode #commentText{background:var(--ink3);color:var(--txt);}
 body.light-mode .trip-block{background:var(--ink2);}
 body.light-mode .login-input{background:var(--ink2);color:var(--txt);}
+/* REMEMBER ME TOGGLE */
+.remember-me-row{display:flex;align-items:center;gap:10px;width:100%;max-width:320px;margin-top:10px;padding:10px 12px;background:var(--ink3);border:1px solid var(--border2);border-radius:10px;cursor:pointer;user-select:none;}
+.remember-me-row input[type=checkbox]{width:18px;height:18px;accent-color:var(--amber);cursor:pointer;flex-shrink:0;}
+.remember-me-row label{font-size:13px;font-weight:700;color:var(--txt2);cursor:pointer;flex:1;}
+
 /* LOGIN ENHANCEMENTS */
 .login-method-tabs{display:flex;border-radius:10px;overflow:hidden;border:1px solid var(--border2);background:var(--ink2);width:100%;max-width:320px;margin-bottom:14px;}
 .lm-tab{flex:1;padding:9px 12px;font-size:13px;font-weight:800;border:none;background:transparent;color:var(--txt2);cursor:pointer;transition:all .2s;font-family:'Heebo',sans-serif;}
@@ -596,6 +601,10 @@ body.light-mode .swipe-inner .trip-block{ background: #d1dce8 !important; }
       <button onclick="togglePassVis('loginPass',this)" style="position:absolute;left:12px;top:50%;transform:translateY(-50%);background:none;border:none;cursor:pointer;font-size:18px;color:var(--txt3);">👁</button>
     </div>
     <button class="login-btn" onclick="doPasswordLogin()">כניסה →</button>
+    <label class="remember-me-row" for="rememberMeCheck">
+      <input type="checkbox" id="rememberMeCheck">
+      <label for="rememberMeCheck">זכור אותי במכשיר זה</label>
+    </label>
     <button class="login-link-btn" onclick="showScreen('registerScreen')">👤 משתמש חדש? להרשמה</button>
     <button class="login-link-btn" onclick="showScreen('forgotScreen')" style="margin-top:6px;">🔑 שכחתי סיסמה</button>
     <button class="login-link-btn" onclick="showSuperAdmin()" style="margin-top:4px;color:var(--txt3);border-color:transparent;font-size:11px;">⚙️ כניסת מנהל ראשי</button>
@@ -1040,6 +1049,27 @@ body.light-mode .swipe-inner .trip-block{ background: #d1dce8 !important; }
         <div class="field"><label>מושבים</label><input type="number" id="vSeats" placeholder="16"></div>
         <div class="field"><label>סוג</label><select id="vType"><option>אוטובוס</option><option>מיניבוס</option><option>ואן</option><option>רכב פרטי</option><option>אחר</option></select></div>
       </div>
+      <!-- שיוך ארגוני -->
+      <div class="field">
+        <label>קטגוריה מיוחדת</label>
+        <select id="vCategory">
+          <option value="">— רגיל —</option>
+          <option value="transport">🚛 תובלתית</option>
+          <option value="bus">🚌 אוטובוס</option>
+          <option value="trip">🏕️ טיולית</option>
+          <option value="special">⭐ מיוחד</option>
+        </select>
+      </div>
+      <div class="field-row">
+        <div class="field">
+          <label>שיוך לפלגה</label>
+          <input type="text" id="vPlatoonId" placeholder="שם / מזהה פלגה...">
+        </div>
+        <div class="field">
+          <label>גורם חוץ-פלגתי</label>
+          <input type="text" id="vExternalUnit" placeholder="יחידה חיצונית...">
+        </div>
+      </div>
       <div class="field">
         <label>אייקון / תמונת רכב</label>
         <div style="display:flex;align-items:center;gap:12px;margin-bottom:8px;">
@@ -1114,7 +1144,7 @@ const db = firebase.database();
 const r  = p => db.ref(p);
 
 // ══════ APP VERSION ══════
-const APP_VERSION = '29';
+const APP_VERSION = '30';
 const APP_BUILD   = '2026-04-22';
 
 function publishVersion(){
@@ -1248,6 +1278,8 @@ function togglePassVis(inputId,btn){
 document.addEventListener('DOMContentLoaded',()=>{
   document.getElementById('regPass')?.addEventListener('input',function(){updateStrengthBar(this.value,'regPassStrength');});
   document.getElementById('resetNewPass')?.addEventListener('input',function(){updateStrengthBar(this.value,'resetPassStrength');});
+  // ── נסה כניסה אוטומטית אם "זכור אותי" מסומן ──
+  tryAutoLogin();
 });
 
 function showScreen(id){
@@ -1259,6 +1291,7 @@ function showScreen(id){
 async function doPasswordLogin(){
   const ident=document.getElementById('loginIdent').value.trim();
   const pass=document.getElementById('loginPass').value;
+  const rememberMe=document.getElementById('rememberMeCheck')?.checked||false;
   if(!ident||!pass){toast('הכנס פרטי כניסה');return;}
 
   r('users').once('value').then(async snap=>{
@@ -1283,6 +1316,14 @@ async function doPasswordLogin(){
       phone:found.phone||'',email:found.email||'',
       alsoDriver:!!found.alsoDriver,avatar:found.avatar||'👤',
       isGuest:!!found.isGuest};
+    // ── Remember Me: שמור/מחק session מקומי ──
+    if(rememberMe){
+      localStorage.setItem('rememberMe','true');
+      localStorage.setItem('savedUser',JSON.stringify(currentUser));
+    } else {
+      localStorage.removeItem('rememberMe');
+      localStorage.removeItem('savedUser');
+    }
     finishLogin();
   }).catch(()=>toast('שגיאת חיבור'));
 }
@@ -1406,8 +1447,13 @@ function finishLogin(){
 function doLogout(){
   if(currentUser) r(`online/${currentUser.id}`).remove();
   currentUser=null; loginUserData=null;
+  // ── נקה זכירת התחברות ──
+  localStorage.removeItem('rememberMe');
+  localStorage.removeItem('savedUser');
   const li=document.getElementById('loginIdent'),lp=document.getElementById('loginPass');
   if(li)li.value=''; if(lp)lp.value='';
+  const rmCb=document.getElementById('rememberMeCheck');
+  if(rmCb) rmCb.checked=false;
   showScreen('loginMain');
   document.getElementById('loginScreen').classList.remove('hidden');
 }
@@ -1431,6 +1477,34 @@ function startListeners(){
     refreshCommanderDropdown();
   });
   startHierarchyListener();
+}
+
+// ══════ AUTO-LOGIN (Remember Me) ══════
+// נקרא פעם אחת בטעינת הדף – לפני הצגת מסך ההתחברות
+function tryAutoLogin(){
+  const remember = localStorage.getItem('rememberMe');
+  if(remember !== 'true') return; // לא סומן "זכור אותי"
+  const raw = localStorage.getItem('savedUser');
+  if(!raw) return;
+  try {
+    const saved = JSON.parse(raw);
+    if(!saved||!saved.id||!saved.name) return;
+    // אמת מול Firebase שהמשתמש עדיין פעיל (לא נמחק/הושהה)
+    r(`users/${saved.id}`).once('value').then(snap=>{
+      const u = snap.val();
+      if(!u || u.status==='pending'){ doLogout(); return; }
+      // בדיקת תוקף guest
+      if(u.isGuest && u.guestExpiry && Date.now()>u.guestExpiry){ doLogout(); return; }
+      // עדכן currentUser מהנתונים העדכניים ב-Firebase
+      currentUser={id:u.id,name:u.name,role:u.role,
+        phone:u.phone||'',email:u.email||'',
+        alsoDriver:!!u.alsoDriver,avatar:u.avatar||'👤',
+        isGuest:!!u.isGuest};
+      // שמור מחדש (ייתכן שהנתונים השתנו)
+      localStorage.setItem('savedUser', JSON.stringify(currentUser));
+      finishLogin();
+    }).catch(()=>{/* אין חיבור – השאר מסך כניסה */});
+  } catch(e){ localStorage.removeItem('savedUser'); localStorage.removeItem('rememberMe'); }
 }
 function goOnline(user){
   const ur=r(`online/${user.id}`);
@@ -2385,15 +2459,21 @@ function renderSettings(){
     </div>`).join(''):'<div class="empty"><p>אין נהגים</p></div>';
   // ── vehicles ──
   const vc=document.getElementById('vehiclesCard');
-  if(vc) vc.innerHTML=vehicles().length?vehicles().map(v=>`
-    <div class="list-item">
+  if(vc) vc.innerHTML=vehicles().length?vehicles().map(v=>{
+    const CATS={transport:'🚛 תובלתית',bus:'🚌 אוטובוס',trip:'🏕️ טיולית',special:'⭐ מיוחד'};
+    const catBadge=v.category?`<span class="badge badge-purple" style="margin-right:4px;">${CATS[v.category]||v.category}</span>`:'';
+    const platoonBadge=v.platoonId?`<span class="badge badge-blue" style="margin-right:2px;">פלגה: ${v.platoonId}</span>`:'';
+    const extBadge=v.externalUnit?`<span class="badge badge-teal" style="margin-right:2px;">חוץ: ${v.externalUnit}</span>`:'';
+    return`<div class="list-item" style="flex-wrap:wrap;gap:4px;">
       ${avatarHtml(v.icon||'🚌',40,'10px')}
-      <div class="li-body"><strong>${v.name}</strong><small>${v.plate||''} · ${v.seats||'?'} מושבים</small></div>
+      <div class="li-body"><strong>${v.name}</strong><small>${v.plate||''} · ${v.seats||'?'} מושבים</small>
+        <div style="display:flex;flex-wrap:wrap;gap:2px;margin-top:3px;">${catBadge}${platoonBadge}${extBadge}</div>
+      </div>
       <div class="li-actions">
         <button class="btn btn-ghost btn-sm" onclick="editVehicleUI('${v.id}')">✏️</button>
         <button class="btn btn-danger btn-sm" onclick="confirmDeleteVehicle('${v.id}')">🗑️</button>
       </div>
-    </div>`).join(''):'<div class="empty"><p>אין רכבים</p></div>';
+    </div>`;}).join(''):'<div class="empty"><p>אין רכבים</p></div>';
   // ── users (fresh fetch) ──
   const uc=document.getElementById('usersCard');
   const pRegList=document.getElementById('pendingRegList');
@@ -2569,20 +2649,32 @@ async function saveUser(){
   }
   if(editId){
     r('users/'+editId).update(data).then(()=>{
-      if(alsoDriver) syncUserToDriver(editId,data);
+      // נהג ישיר (role=driver) או מנהל שגם נהג → סנכרן כרטיס נהג
+      if(data.role==='driver' || alsoDriver) syncUserToDriver(editId,data);
       else removeLinkedDriver(editId);
       toast('משתמש עודכן ✓'); closeModal('userModal'); setTimeout(renderSettings,400);
     }).catch(e=>toast('שגיאה: '+e.message));
   } else {
     const id=uid();
     r('users/'+id).set({id,...data}).then(()=>{
-      if(alsoDriver) syncUserToDriver(id,data);
+      if(data.role==='driver' || alsoDriver) syncUserToDriver(id,data);
       toast('משתמש נוסף ✓'); closeModal('userModal'); setTimeout(renderSettings,400);
     }).catch(e=>toast('שגיאה: '+e.message));
   }
 }
 
-function approveRegistration(id){r(`users/${id}`).update({status:'active'}).then(()=>{toast('✅ אושר!');renderSettings();});}
+function approveRegistration(id){
+  r(`users/${id}`).once('value').then(snap=>{
+    const u=snap.val(); if(!u)return;
+    r(`users/${id}`).update({status:'active'}).then(()=>{
+      // אם המשתמש הוא נהג → צור כרטיס נהג אוטומטית
+      if(u.role==='driver'){
+        syncUserToDriver(id,{...u,status:'active'});
+      }
+      toast('✅ אושר!'); renderSettings();
+    });
+  });
+}
 function rejectRegistration(id){if(!confirm('למחוק?'))return;r(`users/${id}`).remove().then(()=>{toast('❌ נדחה');renderSettings();});}
 
 // ══════ AVATAR / ICON PICKERS ══════
@@ -2677,7 +2769,8 @@ function saveDriver(){
 function openVehicleModal(){
   document.getElementById('vehicleModalTitle').textContent='רכב חדש';
   document.getElementById('vEditId').value='';
-  ['vName','vPlate','vSeats'].forEach(id=>document.getElementById(id).value='');
+  ['vName','vPlate','vSeats','vPlatoonId','vExternalUnit'].forEach(id=>document.getElementById(id).value='');
+  const vc=document.getElementById('vCategory'); if(vc) vc.value='';
   setAvatarPicker('vIconPreview','vIconPreviewInner','vIcon','vIconGrid','🚌',VEHICLE_ICONS);
   openModal('vehicleModal');
 }
@@ -2687,6 +2780,9 @@ function editVehicleUI(id){
   document.getElementById('vPlate').value=v.plate||'';
   document.getElementById('vSeats').value=v.seats||'';
   document.getElementById('vType').value=v.type||'אחר';
+  document.getElementById('vCategory').value=v.category||'';
+  document.getElementById('vPlatoonId').value=v.platoonId||'';
+  document.getElementById('vExternalUnit').value=v.externalUnit||'';
   document.getElementById('vEditId').value=id;
   document.getElementById('vehicleModalTitle').textContent='עריכת רכב';
   setAvatarPicker('vIconPreview','vIconPreviewInner','vIcon','vIconGrid',v.icon||'🚌',VEHICLE_ICONS);
@@ -2696,7 +2792,16 @@ function saveVehicle(){
   const name=document.getElementById('vName').value.trim();
   if(!name){toast('הכנס שם');return;}
   const editId=document.getElementById('vEditId').value;
-  const data={name,plate:document.getElementById('vPlate').value.trim(),seats:document.getElementById('vSeats').value,type:document.getElementById('vType').value,icon:document.getElementById('vIcon').value||'🚌'};
+  const data={
+    name,
+    plate:document.getElementById('vPlate').value.trim(),
+    seats:document.getElementById('vSeats').value,
+    type:document.getElementById('vType').value,
+    icon:document.getElementById('vIcon').value||'🚌',
+    category:document.getElementById('vCategory')?.value||'',
+    platoonId:document.getElementById('vPlatoonId')?.value.trim()||'',
+    externalUnit:document.getElementById('vExternalUnit')?.value.trim()||'',
+  };
   const done=msg=>{toast(msg);['vName','vPlate','vSeats'].forEach(id=>document.getElementById(id).value='');document.getElementById('vEditId').value='';document.getElementById('vehicleModalTitle').textContent='רכב חדש';closeModal('vehicleModal');};
   if(editId) r(`vehicles/${editId}`).update(data).then(()=>done('רכב עודכן ✓')).catch(e=>toast('שגיאה: '+e.message));
   else{const id=uid();r(`vehicles/${id}`).set({...data,id}).then(()=>done('רכב נוסף ✓')).catch(e=>toast('שגיאה: '+e.message));}
@@ -2976,6 +3081,8 @@ function showDeleteConfirm(icon, title, msg, onConfirm){
 function confirmDeleteUser(id){
   if(!id){toast('שגיאה: חסר מזהה');return;}
   showDeleteConfirm('🗑️','למחוק משתמש?','פעולה זו אינה הפיכה', ()=>{
+    // הסר כרטיס נהג מקושר אם קיים
+    removeLinkedDriver(id);
     r('users/'+id).remove()
       .then(()=>{ toast('✓ משתמש נמחק'); setTimeout(renderSettings,600); })
       .catch(e=>toast('❌ שגיאה: '+e.message));
