@@ -476,19 +476,23 @@ button,input,select,textarea{font-family:'Heebo',sans-serif;}
   overflow: hidden;
   border-radius: 10px;
   margin-bottom: 6px;
+  width: 100%;            /* ← critical: wrapper must be fixed width */
   -webkit-transform: translateZ(0);
   transform: translateZ(0);
+  contain: layout style;  /* prevent layout bleed */
 }
 
 .swipe-inner{
   position: relative;
   z-index: 3;
   width: 100%;
+  min-width: 100%;        /* never shrink below wrapper width */
   border-radius: 10px;
-  transition: transform .26s cubic-bezier(.25,.46,.45,.94);
+  transition: transform .30s cubic-bezier(.34,1.20,.64,1); /* spring feel */
   will-change: transform;
+  backface-visibility: hidden;
 }
-.swipe-inner.is-dragging{ transition: none; }
+.swipe-inner.is-dragging{ transition: transform .04s linear; }
 
 /* Trip-block inside inner — always solid, never transparent */
 .swipe-inner .trip-block{
@@ -692,6 +696,7 @@ body.light-mode .swipe-inner .trip-block{ background: #d1dce8 !important; }
     <div id="regPassStrength" style="height:4px;border-radius:2px;margin-bottom:10px;transition:all .3s;background:var(--border2);"></div>
     <select class="login-input" id="regRole" style="margin-bottom:10px;">
       <option value="driver">🚗 נהג</option>
+      <option value="staff">🎖️ סגל פיקודי</option>
       <option value="admin">🛡️ מנהל</option>
     </select>
     <button class="login-btn" onclick="doRegister()">📤 שלח בקשת הרשמה</button>
@@ -829,6 +834,14 @@ body.light-mode .swipe-inner .trip-block{ background: #d1dce8 !important; }
     <div class="sec-title">הפרופיל שלי</div>
     <div style="padding:0 12px 12px;">
       <div class="card" id="selfProfileCard"></div>
+      <button class="btn btn-ghost btn-block" style="margin-top:8px;" onclick="openSelfEdit()">✏️ עריכת פרטים אישיים</button>
+    </div>
+  </div>
+  <!-- STAFF PANEL -->
+  <div id="staffSettingsPanel" style="display:none;">
+    <div class="sec-title">הפרופיל שלי</div>
+    <div style="padding:0 12px 12px;">
+      <div class="card" id="staffProfileCard"></div>
       <button class="btn btn-ghost btn-block" style="margin-top:8px;" onclick="openSelfEdit()">✏️ עריכת פרטים אישיים</button>
     </div>
   </div>
@@ -1588,16 +1601,18 @@ function finishLogin(){
   document.getElementById('loginScreen').classList.add('hidden');
   const isAdmin=currentUser.role==='admin';
   const isGuest=currentUser.isGuest||currentUser.role==='guest';
-  const isDriver=!isAdmin&&!isGuest;
+  const isStaff=currentUser.role==='staff';
+  const isDriver=!isAdmin&&!isGuest&&!isStaff;
   document.getElementById('modePill').style.display=isAdmin?'flex':'none';
   document.getElementById('fab').style.display=isAdmin?'flex':'none';
   document.getElementById('tab-pending').style.display=isAdmin?'flex':'none';
-  document.getElementById('tab-propose').style.display=isDriver?'flex':'none';
+  document.getElementById('tab-propose').style.display=(isDriver||isStaff)?'flex':'none';
   document.getElementById('tab-trips').style.display=isAdmin?'flex':'none';
   document.getElementById('tab-driver').style.display=isGuest?'none':'flex';
-  document.getElementById('tab-hierarchy').style.display=(isAdmin||isDriver)?'flex':'none';
-  // guests see only schedule
+  document.getElementById('tab-hierarchy').style.display=(isAdmin||isDriver||isStaff)?'flex':'none';
+  // guests see only schedule; staff see schedule + propose + hierarchy
   if(isGuest) showPage('schedule');
+  else if(isStaff) showPage('schedule');
   else if(!isAdmin) showPage('driver');
   const ub=document.getElementById('undo-bar');
   ub.style.display='none'; ub.classList.remove('show'); undoStack=[];
@@ -1606,6 +1621,7 @@ function finishLogin(){
   // בדוק משתמשים זמניים שפג תוקפם
   if(currentUser.role==='admin') checkExpiredGuests();
   if(isGuest) toast(`ברוך הבא ${currentUser.name}! 👁️ צפייה בלבד`);
+  else if(isStaff) toast(`ברוך הבא, ${currentUser.name}! 🎖️`);
   else toast(`ברוך הבא, ${currentUser.name}! 👋`);
 }
 
@@ -1920,16 +1936,34 @@ function renderSchedule(){
       const dName = driver ? driver.name : 'לא שויך';
       const vName = vehicle ? vehicle.name : '—';
       const vIcon = vehicle ? (vehicle.icon && vehicle.icon.length < 5 && vehicle.icon !== 'jeep' ? vehicle.icon : (vehicle.icon === 'jeep' ? '🚙' : '🚌')) : '🚌';
+      // Build summary rows — only show info NOT already on the card face
+      const cmtCnt2 = trip.comments ? Object.keys(trip.comments).length : 0;
+      const hasDelay = trip.actualTime && trip.actualTime !== trip.time;
+      const missingDriver = !trip.driverId;
+      const missingVehicle = !trip.vehicleId;
+      const stopsHtml = trip.stops && trip.stops.length
+        ? `<div class="ts-row"><span class="ts-icon">↓</span><div class="ts-content"><span class="ts-label">עצירות בדרך</span><span class="ts-value">${trip.stops.join(' · ')}</span></div></div>` : '';
+      const cmdHtml = trip.commander
+        ? `<div class="ts-row"><span class="ts-icon">🎖️</span><div class="ts-content"><span class="ts-label">מ. משלח</span><span class="ts-value">${trip.commander}</span></div></div>` : '';
+      const tripCmdHtml = trip.tripCommander
+        ? `<div class="ts-row"><span class="ts-icon">🪖</span><div class="ts-content"><span class="ts-label">מ. נסיעה</span><span class="ts-value">${trip.tripCommander}</span></div></div>` : '';
+      const paxHtml = trip.passengers
+        ? `<div class="ts-row"><span class="ts-icon">👥</span><div class="ts-content"><span class="ts-label">נוסעים</span><span class="ts-value">${trip.passengers}</span></div></div>` : '';
+      const delayHtml = hasDelay
+        ? `<div class="ts-row"><span class="ts-icon">⏰</span><div class="ts-content"><span class="ts-label">שעה בפועל</span><span class="ts-value" style="color:#fca5a5;">${trip.actualTime}</span></div></div>` : '';
+      const notesHtml = trip.notes
+        ? `<div class="ts-row"><span class="ts-icon">📝</span><div class="ts-content"><span class="ts-label">הערות</span><span class="ts-value">${trip.notes}</span></div></div>` : '';
+      const cmtHtml = cmtCnt2
+        ? `<div class="ts-row"><span class="ts-icon">💬</span><div class="ts-content"><span class="ts-label">תגובות</span><span class="ts-value">${cmtCnt2} הודעות</span></div></div>` : '';
+      const alertRows = [
+        missingDriver ? `<div class="ts-row" style="color:#fca5a5;"><span class="ts-icon">⚠️</span><div class="ts-content"><span class="ts-label" style="color:#fca5a5;">חסר</span><span class="ts-value" style="color:#fca5a5;">לא שויך נהג</span></div></div>` : '',
+        missingVehicle ? `<div class="ts-row" style="color:#fca5a5;"><span class="ts-icon">⚠️</span><div class="ts-content"><span class="ts-label" style="color:#fca5a5;">חסר</span><span class="ts-value" style="color:#fca5a5;">לא שויך רכב</span></div></div>` : '',
+      ].join('');
+      // Show "no extra info" placeholder if nothing special to show
+      const extraRows = stopsHtml+cmdHtml+tripCmdHtml+paxHtml+delayHtml+notesHtml+cmtHtml+alertRows;
       summaryPanel.innerHTML = `
-        <div class="ts-header">📋 סיכום נסיעה</div>
-        <div class="ts-row"><span class="ts-icon">🕐</span><div class="ts-content"><span class="ts-label">שעה</span><span class="ts-value">${trip.time}</span></div></div>
-        <div class="ts-row"><span class="ts-icon">📍</span><div class="ts-content"><span class="ts-label">מסלול</span><span class="ts-value">${trip.from} → ${trip.to}</span></div></div>
-        ${trip.stops&&trip.stops.length?`<div class="ts-row"><span class="ts-icon" style="font-size:10px;">↓</span><div class="ts-content"><span class="ts-label">עצירות</span><span class="ts-value">${trip.stops.join(' · ')}</span></div></div>`:''}
-        <div class="ts-row"><span class="ts-icon">👤</span><div class="ts-content"><span class="ts-label">נהג</span><span class="ts-value">${dName}</span></div></div>
-        <div class="ts-row"><span class="ts-icon">${vIcon}</span><div class="ts-content"><span class="ts-label">רכב</span><span class="ts-value">${vName}</span></div></div>
-        ${trip.commander?`<div class="ts-row"><span class="ts-icon">🎖️</span><div class="ts-content"><span class="ts-label">מפקד משלח</span><span class="ts-value">${trip.commander}</span></div></div>`:''}
-        ${trip.tripCommander?`<div class="ts-row"><span class="ts-icon">🪖</span><div class="ts-content"><span class="ts-label">מפקד נסיעה</span><span class="ts-value">${trip.tripCommander}</span></div></div>`:''}
-        ${trip.passengers?`<div class="ts-row"><span class="ts-icon">👥</span><div class="ts-content"><span class="ts-label">נוסעים</span><span class="ts-value">${trip.passengers}</span></div></div>`:''}`;
+        <div class="ts-header">📋 מידע נוסף</div>
+        ${extraRows || `<div style="font-size:11px;opacity:.6;padding:6px 0;">✓ אין מידע חסר</div>`}`;
 
       // ── Actions panel (revealed by LEFT swipe – admin only) ──
       if(isAdmin){
@@ -2422,8 +2456,8 @@ function renderPending(){
 function approveProposal(id){
   const p=S.proposals[id]; if(!p)return;
   const tripId=uid();
-  r(`trips/${tripId}`).set({id:tripId,from:p.from,to:p.to,stops:p.stops||[],time:p.time,date:p.date,passengers:p.passengers,type:p.type,notes:p.notes,status:'pending',comments:{},sentBy:p.sentBy})
-    .then(()=>{r(`proposals/${id}`).update({status:'approved'});toast('✅ נסיעה אושרה!');})
+  r(`trips/${tripId}`).set({id:tripId,from:p.from,to:p.to,stops:p.stops||[],time:p.time,date:p.date,passengers:p.passengers,type:p.type,notes:p.notes,status:'pending',comments:{},sentBy:p.sentBy,driverId:'',vehicleId:''})
+    .then(()=>{r(`proposals/${id}`).update({status:'approved',approvedTripId:tripId});toast('✅ נסיעה אושרה! ניתן לשבץ נהג ורכב');})
     .catch(e=>toast('שגיאה: '+e.message));
 }
 function rejectProposal(id){r(`proposals/${id}`).update({status:'rejected'}).then(()=>toast('❌ נדחתה'));}
@@ -2590,11 +2624,25 @@ function renderAnalytics(){
 // ══════ SETTINGS ══════
 function renderSettings(){
   if(!currentUser)return;
-  const isAdmin=currentUser.role==='admin';
-  if(isAdmin) renderTagManager();
-  document.getElementById('adminSettingsPanel').style.display=isAdmin?'block':'none';
-  document.getElementById('driverSettingsPanel').style.display=isAdmin?'none':'block';
-  if(!isAdmin){
+  const _isAdmin=currentUser.role==='admin';
+  const _isStaff=currentUser.role==='staff';
+  if(_isAdmin) renderTagManager();
+  document.getElementById('adminSettingsPanel').style.display=_isAdmin?'block':'none';
+  document.getElementById('driverSettingsPanel').style.display=(!_isAdmin&&!_isStaff)?'block':'none';
+  document.getElementById('staffSettingsPanel').style.display=_isStaff?'block':'none';
+  if(_isStaff){
+    const card=document.getElementById('staffProfileCard');
+    if(card) card.innerHTML=`<div class="card-body" style="display:flex;align-items:center;gap:12px;">
+      ${avatarHtml(currentUser.avatar||'🎖️',46,'50%')}
+      <div><div style="font-size:16px;font-weight:900;">${currentUser.name}</div>
+        <div style="font-size:12px;color:var(--txt2);">${currentUser.phone||''}${currentUser.email?' · '+currentUser.email:''}</div>
+        <span class="badge badge-amber" style="margin-top:4px;">🎖️ סגל פיקודי</span>
+      </div>
+      <button class="btn btn-ghost btn-sm" style="margin-right:auto;" onclick="openSelfEdit()">✏️</button>
+    </div>`;
+    return;
+  }
+  if(!_isAdmin){
     const card=document.getElementById('selfProfileCard');
     if(card) card.innerHTML=`<div class="card-body" style="display:flex;align-items:center;gap:12px;">
       ${avatarHtml(currentUser.avatar||'👤',46,'50%')}
@@ -2637,7 +2685,9 @@ function renderSettings(){
     const catBadge=v.category?`<span class="badge badge-purple" style="margin-right:4px;">${CATS[v.category]||v.category}</span>`:'';
     const platoonBadge=v.platoonId?`<span class="badge badge-blue" style="margin-right:2px;">פלגה: ${v.platoonId}</span>`:'';
     const extBadge=v.externalUnit?`<span class="badge badge-teal" style="margin-right:2px;">חוץ: ${v.externalUnit}</span>`:'';
-    const kmLeft=v.nextServiceKm&&v.km?(v.nextServiceKm-v.km):null;
+    const _km=typeof v.km==='number'?v.km:(v.km?parseInt(v.km):null);
+    const _nsk=v.nextServiceKm?parseInt(v.nextServiceKm):null;
+    const kmLeft=_nsk!==null?(_km!==null?_nsk-_km:null):null;
     const kmWarn=kmLeft!==null&&kmLeft<500;
     return`<div class="list-item" style="flex-wrap:wrap;gap:4px;">
       ${avatarHtml(v.icon||'🚌',40,'10px')}
@@ -2683,7 +2733,7 @@ function renderSettings(){
             ${avatarHtml(u.avatar||(u.role==='admin'?'🛡️':'🚗'),42,'50%')}
             <div>
               <div style="font-weight:800;font-size:14px;">${u.name}${u.alsoDriver?'<span style="font-size:10px;color:var(--teal);margin-right:4px;"> +נהג</span>':''}</div>
-              <div style="font-size:11px;color:var(--txt2);">${u.phone||u.email||''} · ${u.role==='admin'?'🛡️ מנהל':'🚗 נהג'}${u.jobTitle?' · <b style="color:var(--amber)">'+u.jobTitle+'</b>':''}</div>
+              <div style="font-size:11px;color:var(--txt2);">${u.phone||u.email||''} · ${u.role==='admin'?'🛡️ מנהל':u.role==='staff'?'🎖️ סגל פיקודי':'🚗 נהג'}${u.jobTitle?' · <b style="color:var(--amber)">'+u.jobTitle+'</b>':''}</div>
               ${u.idNumber||u.personalNumber?`<div style="font-size:10px;color:var(--txt3);margin-top:2px;">${u.idNumber?'🪪 '+u.idNumber:''}${u.personalNumber?' · 🔢'+u.personalNumber:''}</div>`:''}
               ${renderUserTagPills(u.tags,'')}
             </div>
@@ -2747,10 +2797,21 @@ function confirmDeleteVehicle(id){
 
 // ══════ USER MANAGEMENT ══════
 function onRoleChange(){
-  const isAdmin=document.getElementById('uRole').value==='admin';
-  document.getElementById('uAlsoDriverField').style.display=isAdmin?'block':'none';
-  if(!isAdmin) document.getElementById('uAlsoDriver').checked=false;
+  const role=document.getElementById('uRole').value;
+  const isAdminRole=role==='admin';
+  const isStaffRole=role==='staff';
+  document.getElementById('uAlsoDriverField').style.display=isAdminRole?'block':'none';
+  if(!isAdminRole) document.getElementById('uAlsoDriver').checked=false;
   updateAlsoDriverVisual();
+  const platoonField=document.getElementById('uPlatoonField');
+  if(platoonField) platoonField.style.display=isStaffRole?'block':'none';
+  if(isStaffRole) populateUserPlatoonDropdown();
+}
+function populateUserPlatoonDropdown(selectedId){
+  const sel=document.getElementById('uPlatoonId'); if(!sel) return;
+  const platoons=Object.values(S.hierarchy||{});
+  sel.innerHTML='<option value="">— ללא שיוך —</option>'
+    +platoons.map(p=>`<option value="${p.id}" ${selectedId===p.id?'selected':''}>${p.name}</option>`).join('');
 }
 function updateAlsoDriverVisual(){
   const cb=document.getElementById('uAlsoDriver');
@@ -2767,6 +2828,8 @@ function openAddUser(){
   document.getElementById('uAlsoDriver').checked=false;
   document.getElementById('uAlsoDriverField').style.display='none';
   document.getElementById('alsoDriverCheck').textContent='';
+  const pf=document.getElementById('uPlatoonField'); if(pf) pf.style.display='none';
+  const ps=document.getElementById('uPlatoonId'); if(ps) ps.value='';
   document.getElementById('uPasswordSection').style.display='block';
   document.getElementById('uPassStrengthBar').style.background='var(--border2)';
   setAvatarPicker('uAvatarPreview','uAvatarPreviewInner','uAvatar','uAvatarGrid','👤',PEOPLE_AVATARS);
@@ -2790,6 +2853,8 @@ function openEditUser(id){
     document.getElementById('uAlsoDriver').checked=!!u.alsoDriver;
     document.getElementById('uAlsoDriverField').style.display=u.role==='admin'?'block':'none';
     document.getElementById('alsoDriverCheck').textContent=u.alsoDriver?'✅':'';
+    const pf=document.getElementById('uPlatoonField');
+    if(pf){ pf.style.display=u.role==='staff'?'block':'none'; if(u.role==='staff') populateUserPlatoonDropdown(u.platoonId||''); }
     const np=document.getElementById('uNewPass'); if(np) np.value='';
     document.getElementById('uPasswordSection').style.display='block';
     document.getElementById('uPassStrengthBar').style.background='var(--border2)';
@@ -2851,6 +2916,10 @@ async function saveUser(){
   const idNumber=(document.getElementById('uIdNumber')?.value||'').trim();
   const personalNumber=(document.getElementById('uPersonalNumber')?.value||'').trim();
   const data={name,phone,email,role,alsoDriver,status:'active',avatar,jobTitle,tags,idNumber,personalNumber};
+  // Platoon assignment for staff
+  if(role==='staff'){
+    data.platoonId=document.getElementById('uPlatoonId')?.value||'';
+  }
   // Password: required for new user, optional for edit
   if(newPass){
     const v=validatePassword(newPass);
@@ -3140,7 +3209,9 @@ function openVehicleDetail(id){
   document.getElementById('vDetailTitle').textContent=v.name;
   const CATS={transport:'🚛 תובלתית',bus:'🚌 אוטובוס',trip:'🏕️ טיולית',special:'⭐ מיוחד'};
   const catTxt=v.category?CATS[v.category]||v.category:'';
-  const kmLeft=v.nextServiceKm&&v.km?(v.nextServiceKm-v.km):null;
+  const _km=typeof v.km==='number'?v.km:(v.km?parseInt(v.km):null);
+  const _nsk=v.nextServiceKm?parseInt(v.nextServiceKm):null;
+  const kmLeft=_nsk!==null?(_km!==null?_nsk-_km:null):null;
   const kmWarn=kmLeft!==null&&kmLeft<500;
   const sub=v.substituteId?gv(v.substituteId):null;
   document.getElementById('vDetailBody').innerHTML=`
@@ -3157,12 +3228,14 @@ function openVehicleDetail(id){
     <!-- קילומטראז' -->
     <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:12px;">
       <div style="background:var(--ink3);border-radius:10px;padding:10px;text-align:center;">
-        <div style="font-size:18px;font-weight:900;">${(v.km||0).toLocaleString()}</div>
+        <div style="font-size:18px;font-weight:900;">${(_km!==null?_km:0).toLocaleString()}</div>
         <div style="font-size:10px;color:var(--txt3);">ק"מ נוכחי</div>
       </div>
-      <div style="background:${kmWarn?'rgba(239,68,68,.1)':'var(--ink3)'};border-radius:10px;padding:10px;text-align:center;${kmWarn?'border:1px solid rgba(239,68,68,.3);':''}">
-        <div style="font-size:18px;font-weight:900;color:${kmWarn?'var(--red)':'var(--txt)'};">${kmLeft!==null?kmLeft.toLocaleString():'—'}</div>
-        <div style="font-size:10px;color:var(--txt3);">ק"מ לטיפול</div>
+      <div style="background:${kmWarn?'rgba(239,68,68,.1)':(_nsk!==null?'rgba(34,197,94,.06)':'var(--ink3)')};border-radius:10px;padding:10px;text-align:center;${kmWarn?'border:1px solid rgba(239,68,68,.3);':(_nsk!==null?'border:1px solid rgba(34,197,94,.15);':'')}">
+        <div style="font-size:18px;font-weight:900;color:${kmWarn?'var(--red)':(_nsk!==null?'var(--green)':'var(--txt)')};">
+          ${kmLeft!==null ? kmLeft.toLocaleString() : (_nsk!==null ? _nsk.toLocaleString() : '—')}
+        </div>
+        <div style="font-size:10px;color:var(--txt3);">${kmLeft!==null?'ק"מ לטיפול':(_nsk!==null?'טיפול ב-ק"מ':'ק"מ לטיפול')}</div>
       </div>
     </div>
     <!-- מוסך -->
@@ -3716,6 +3789,7 @@ function startHierarchyListener(){
 
 // ══ Access helpers ══
 function isAdmin(){ return currentUser?.role==='admin'; }
+function isStaff(){ return currentUser?.role==='staff'; }
 
 function collectSubtreeNodes(nodeId, treeId, set){
   set.add(nodeId);
@@ -3736,6 +3810,12 @@ function getAncestorNodes(nodeId, treeId){
 function getTreeAccessForCurrentUser(treeId){
   if(!currentUser) return {visibleNodeIds:new Set(),canEdit:false};
   if(isAdmin()) return {visibleNodeIds:new Set(Object.keys(S.hierarchy[treeId]?.nodes||{})),canEdit:true};
+
+  // Staff: can see entire tree but cannot edit
+  if(isStaff()){
+    const allNodeIds=new Set(Object.keys(S.hierarchy[treeId]?.nodes||{}));
+    return {visibleNodeIds:allNodeIds,canEdit:false};
+  }
 
   const uid=currentUser.id;
   const tree=S.hierarchy[treeId]||{};
@@ -3769,6 +3849,7 @@ function getTreeAccessForCurrentUser(treeId){
 
 function canSeeTree(treeId){
   if(isAdmin()) return true;
+  if(isStaff()) return true;
   const {visibleNodeIds}=getTreeAccessForCurrentUser(treeId);
   return visibleNodeIds.size>0;
 }
@@ -3777,6 +3858,7 @@ function canSeeTree(treeId){
 function getVisibleTrips(){
   const allTrips=trips();
   if(isAdmin()) return allTrips;
+  if(isStaff()) return allTrips; // staff see all approved trips
   const uid=currentUser.id;
   const visibleUserIds=new Set([uid]);
   Object.entries(S.hierarchy||{}).forEach(([treeId,tree])=>{
@@ -3859,10 +3941,18 @@ function renderPlatoonList(){
         <div class="htree-avatar" style="background:rgba(245,158,11,.08);width:40px;height:40px;">${imgHtml}</div>
         <div class="htree-info">
           <div class="htree-name">${t.name}</div>
-          <div class="htree-meta">מפקד: ${cmdName} · ${nodeCount} אנשים</div>
+          <div class="htree-meta">מפקד: ${cmdName} · ${nodeCount} אנשים${isStaff()&&!isAdmin()?'' : ''}</div>
         </div>
         <div style="color:var(--txt3);font-size:18px;padding-left:4px;">›</div>
-      </div>`;
+      </div>
+      ${(()=>{
+        // Show staff members associated with this platoon (not in tree)
+        const staffMembers=_hAllUsers.filter(u=>u.role==='staff'&&u.platoonId===t.id);
+        if(!staffMembers.length) return '';
+        return `<div style="padding:4px 12px 6px;display:flex;flex-wrap:wrap;gap:4px;">
+          ${staffMembers.map(u=>`<span style="display:inline-flex;align-items:center;gap:4px;padding:2px 8px;border-radius:999px;background:rgba(245,158,11,.1);border:1px solid rgba(245,158,11,.25);font-size:11px;font-weight:700;color:var(--amber);">🎖️ ${u.name}</span>`).join('')}
+        </div>`;
+      })()}`;
     });
     if(magama) html+=`</div></div>`;
   });
@@ -3928,8 +4018,27 @@ function renderHierarchyTree(){
     html=rootNodes.map(n=>renderHNode(n,_activeTreeId,visibleNodeIds,canEdit,0)).join('');
   }
 
+  // ── סגל פיקודי משויך לפלגה ──
+  const platoonStaff=_hAllUsers.filter(u=>u.role==='staff'&&u.platoonId===_activeTreeId);
+  if(platoonStaff.length){
+    html+=`<div style="margin-top:14px;padding-bottom:4px;">
+      <div style="font-size:10px;font-weight:800;color:var(--amber);letter-spacing:1px;margin-bottom:6px;">🎖️ סגל פיקודי (${platoonStaff.length})</div>
+      <div class="card" style="margin:0;overflow:hidden;">
+        ${platoonStaff.map(u=>`
+          <div class="list-item">
+            ${avatarHtml(u.avatar||'🎖️',34,'50%')}
+            <div class="li-body">
+              <strong style="font-size:13px;">${u.name}</strong>
+              <small>${u.jobTitle||'סגל פיקודי'} · ${u.phone||u.email||''}</small>
+            </div>
+            <span class="badge badge-amber" style="font-size:9px;">🎖️</span>
+          </div>`).join('')}
+      </div>
+    </div>`;
+  }
+
   // ── רכבי הפלגה ──
-  // tree is already declared above (S.hierarchy[_activeTreeId])
+  // tree already declared above
   const treeName=((tree&&tree.name)||'').toLowerCase().trim();
   const platoonVehicles=vehicles().filter(v=>{
     if(!v.platoonId) return false;
@@ -4469,6 +4578,7 @@ function addDriverNodeToTree(){}
         <div class="field" id="uRoleField"><label>תפקיד</label>
           <select id="uRole" onchange="onRoleChange()">
             <option value="driver">🚗 נהג</option>
+            <option value="staff">🎖️ סגל פיקודי</option>
             <option value="admin">🛡️ מנהל</option>
           </select>
         </div>
@@ -4479,6 +4589,12 @@ function addDriverNodeToTree(){}
             <span id="alsoDriverCheck" style="font-size:18px;transition:all .2s;"></span>
           </div>
           <div style="font-size:11px;color:var(--txt3);margin-top:5px;">כשמסומן – יופיע ברשימת הנהגים ויוכל לנהל נסיעות משלו</div>
+        </div>
+        <div class="field" id="uPlatoonField" style="display:none;">
+          <label>📍 פלגה (לסגל פיקודי)</label>
+          <select id="uPlatoonId" style="width:100%;padding:11px 13px;border-radius:var(--r2);background:var(--ink3);border:1px solid var(--border2);color:var(--txt);font-size:14px;outline:none;">
+            <option value="">— ללא שיוך —</option>
+          </select>
         </div>
         <div class="field">
           <label>💼 תפקיד</label>
