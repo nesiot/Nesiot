@@ -466,35 +466,39 @@ button,input,select,textarea{font-family:'Heebo',sans-serif;}
 }
 .trip-block.night-trip .tb-time::after{content:' 🌙';font-size:10px;}
 
-/* ── SWIPE SYSTEM ──
-   wrapper: overflow:hidden clips panels at card edges
-   inner:   slides L/R, always fully opaque, z-index:3
-   panels:  z-index:1/2, only visible when inner slides away
+/* ── SWIPE SYSTEM — WhatsApp style ──
+   wrapper:  clips overflow, sets height from inner
+   inner:    the card — follows finger exactly
+   panels:   anchored to wrapper edges, always full height,
+             clipped by wrapper overflow:hidden
+             revealed as inner slides away
+   RTL:
+     swipe RIGHT → actions appear on RIGHT  (right:0)
+     swipe LEFT  → summary appears on LEFT  (left:0)
 */
 .swipe-wrapper{
   position: relative;
   overflow: hidden;
   border-radius: 10px;
   margin-bottom: 6px;
-  width: 100%;            /* ← critical: wrapper must be fixed width */
+  width: 100%;
   -webkit-transform: translateZ(0);
   transform: translateZ(0);
-  contain: layout style;  /* prevent layout bleed */
 }
 
 .swipe-inner{
   position: relative;
-  z-index: 3;
+  z-index: 2;
   width: 100%;
-  min-width: 100%;        /* never shrink below wrapper width */
   border-radius: 10px;
-  transition: transform .30s cubic-bezier(.34,1.20,.64,1); /* spring feel */
+  transition: transform .28s cubic-bezier(.25,.46,.45,.94);
   will-change: transform;
   backface-visibility: hidden;
+  -webkit-backface-visibility: hidden;
 }
-.swipe-inner.is-dragging{ transition: transform .04s linear; }
+.swipe-inner.is-dragging{ transition: none; }
 
-/* Trip-block inside inner — always solid, never transparent */
+/* Trip-block inside inner */
 .swipe-inner .trip-block{
   margin-bottom: 0;
   border-radius: 10px;
@@ -503,31 +507,28 @@ button,input,select,textarea{font-family:'Heebo',sans-serif;}
 body.light-mode .swipe-inner .trip-block{ background: #d1dce8 !important; }
 .swipe-inner .trip-block.night-trip{ background: #1a0d40 !important; }
 
-/* ── Actions panel – revealed by LEFT swipe (admin) ── */
+/* ── Actions panel – RIGHT side, revealed by RIGHT swipe ── */
 .swipe-actions{
   position: absolute;
   top: 0; right: 0; bottom: 0;
-  width: 210px;
+  width: 195px;
   display: flex;
   align-items: stretch;
-  z-index: 2;
+  z-index: 1;
   border-radius: 0 10px 10px 0;
   overflow: hidden;
-  pointer-events: none;  /* disabled until actually open */
 }
-.swipe-actions.is-open{ pointer-events: auto; }
 .swipe-action-btn{
   flex: 1;
   display: flex; flex-direction: column;
   align-items: center; justify-content: center;
-  gap: 5px; border: none; cursor: pointer;
+  gap: 4px; border: none; cursor: pointer;
   font-family: 'Heebo', sans-serif;
   font-size: 11px; font-weight: 700; color: #fff;
   -webkit-tap-highlight-color: transparent;
-  transition: filter .1s;
-  min-width: 0;          /* prevent buttons from squishing each other */
+  min-width: 0;
 }
-.swipe-action-btn:active{ filter: brightness(.72); }
+.swipe-action-btn:active{ filter: brightness(.75); }
 .swipe-action-btn svg{
   width: 20px; height: 20px;
   stroke: currentColor; stroke-width: 1.8;
@@ -535,33 +536,30 @@ body.light-mode .swipe-inner .trip-block{ background: #d1dce8 !important; }
   flex-shrink: 0;
 }
 
-/* ── Summary panel – revealed by RIGHT swipe ── */
+/* ── Summary panel – LEFT side, revealed by LEFT swipe ── */
 .swipe-summary{
   position: absolute;
   top: 0; left: 0; bottom: 0;
-  width: 240px;
+  width: 220px;
   display: flex; flex-direction: column;
-  justify-content: flex-start;
+  justify-content: center;
   padding: 10px 14px;
-  z-index: 2;            /* same as actions — both behind inner (z:3) */
+  z-index: 1;
   border-radius: 10px 0 0 10px;
   overflow: hidden;
   color: #fff;
-  pointer-events: none;  /* disabled until actually open */
 }
-.swipe-summary.is-open{ pointer-events: auto; }
 .ts-header{
   font-size: 9px; font-weight: 900; letter-spacing: 1px;
-  text-transform: uppercase; opacity: .75;
+  text-transform: uppercase; opacity: .7;
   margin-bottom: 6px; color: #fff;
   flex-shrink: 0;
 }
 .ts-row{
   display: flex; align-items: center; gap: 7px;
   padding: 3px 0;
-  border-bottom: 1px solid rgba(255,255,255,.1);
-  min-width: 0;
-  overflow: hidden;       /* row itself never overflows panel width */
+  border-bottom: 1px solid rgba(255,255,255,.12);
+  min-width: 0; overflow: hidden;
 }
 .ts-row:last-child{ border-bottom: none; }
 .ts-icon{
@@ -569,23 +567,17 @@ body.light-mode .swipe-inner .trip-block{ background: #d1dce8 !important; }
   text-align: center; flex-shrink: 0; line-height: 1;
 }
 .ts-content{
-  flex: 1;
-  min-width: 0;           /* allows children to ellipsis */
-  overflow: hidden;
+  flex: 1; min-width: 0; overflow: hidden;
 }
 .ts-label{
   font-size: 8px; font-weight: 800; opacity: .55;
   text-transform: uppercase; letter-spacing: .3px; line-height: 1;
-  color: #fff; display: block;
-  white-space: nowrap;
+  color: #fff; display: block; white-space: nowrap;
 }
 .ts-value{
   font-size: 11px; font-weight: 800; line-height: 1.3;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;  /* long values truncate cleanly */
-  color: #fff; display: block;
-  max-width: 100%;
+  white-space: nowrap; overflow: hidden;
+  text-overflow: ellipsis; color: #fff; display: block; max-width: 100%;
 }
 
 .pass-strength-bar{height:4px;border-radius:2px;margin-top:6px;transition:all .3s;background:var(--border2);}
@@ -1940,94 +1932,69 @@ function renderSchedule(){
 
     if(isAdmin) setupDrag(bl,trip.id);
 
-    // Swipe: summary for everyone, actions for admin only
+    // Swipe: actions on RIGHT (right swipe), summary on LEFT (left swipe)
     {
       const wrapper = document.createElement('div');
       wrapper.className = 'swipe-wrapper';
-      // opacity on wrapper (not block) so panels are also faded, preventing bleed-through
       if(trip.status==='done') wrapper.classList.add('trip-done');
       if(trip.status==='cancelled') wrapper.classList.add('trip-cancelled');
 
       const cardCol  = isNight ? '#8b5cf6' : col;
-      const editBg   = hexToRgba(cardCol, 0.92);
-      const copyBg   = hexToRgba(cardCol, 0.72);
-      const deleteBg = 'rgba(239,68,68,0.95)';
+      const deleteBg = 'rgba(220,38,38,0.96)';
+      const copyBg   = hexToRgba(cardCol, 0.78);
+      const editBg   = hexToRgba(cardCol, 0.96);
 
-      // ── Summary panel (revealed by RIGHT swipe) ──
-      const summaryPanel = document.createElement('div');
-      summaryPanel.className = 'swipe-summary';
-      summaryPanel.style.background = isNight
-        ? 'linear-gradient(135deg,#2d1060,#4a1a9a)'
-        : `linear-gradient(135deg,${hexToRgba(cardCol,0.97)},${hexToRgba(cardCol,0.82)})`;
-
-      const dName = driver ? driver.name : 'לא שויך';
-      const vName = vehicle ? vehicle.name : '—';
-      const vIcon = vehicle ? (vehicle.icon && vehicle.icon.length < 5 && vehicle.icon !== 'jeep' ? vehicle.icon : (vehicle.icon === 'jeep' ? '🚙' : '🚌')) : '🚌';
-      // Build summary rows — only show info NOT already on the card face
-      const cmtCnt2 = trip.comments ? Object.keys(trip.comments).length : 0;
-      const hasDelay = trip.actualTime && trip.actualTime !== trip.time;
-      const missingDriver = !trip.driverId;
-      const missingVehicle = !trip.vehicleId;
-      const stopsHtml = trip.stops && trip.stops.length
-        ? `<div class="ts-row"><span class="ts-icon">↓</span><div class="ts-content"><span class="ts-label">עצירות בדרך</span><span class="ts-value">${trip.stops.join(' · ')}</span></div></div>` : '';
-      const cmdHtml = trip.commander
-        ? `<div class="ts-row"><span class="ts-icon">🎖️</span><div class="ts-content"><span class="ts-label">מ. משלח</span><span class="ts-value">${trip.commander}</span></div></div>` : '';
-      const tripCmdHtml = trip.tripCommander
-        ? `<div class="ts-row"><span class="ts-icon">🪖</span><div class="ts-content"><span class="ts-label">מ. נסיעה</span><span class="ts-value">${trip.tripCommander}</span></div></div>` : '';
-      const paxHtml = trip.passengers
-        ? `<div class="ts-row"><span class="ts-icon">👥</span><div class="ts-content"><span class="ts-label">נוסעים</span><span class="ts-value">${trip.passengers}</span></div></div>` : '';
-      const delayHtml = hasDelay
-        ? `<div class="ts-row"><span class="ts-icon">⏰</span><div class="ts-content"><span class="ts-label">שעה בפועל</span><span class="ts-value" style="color:#fca5a5;">${trip.actualTime}</span></div></div>` : '';
-      const notesHtml = trip.notes
-        ? `<div class="ts-row"><span class="ts-icon">📝</span><div class="ts-content"><span class="ts-label">הערות</span><span class="ts-value">${trip.notes}</span></div></div>` : '';
-      const cmtHtml = cmtCnt2
-        ? `<div class="ts-row"><span class="ts-icon">💬</span><div class="ts-content"><span class="ts-label">תגובות</span><span class="ts-value">${cmtCnt2} הודעות</span></div></div>` : '';
-      const alertRows = [
-        missingDriver ? `<div class="ts-row" style="color:#fca5a5;"><span class="ts-icon">⚠️</span><div class="ts-content"><span class="ts-label" style="color:#fca5a5;">חסר</span><span class="ts-value" style="color:#fca5a5;">לא שויך נהג</span></div></div>` : '',
-        missingVehicle ? `<div class="ts-row" style="color:#fca5a5;"><span class="ts-icon">⚠️</span><div class="ts-content"><span class="ts-label" style="color:#fca5a5;">חסר</span><span class="ts-value" style="color:#fca5a5;">לא שויך רכב</span></div></div>` : '',
-      ].join('');
-      // Show "no extra info" placeholder if nothing special to show
-      const extraRows = stopsHtml+cmdHtml+tripCmdHtml+paxHtml+delayHtml+notesHtml+cmtHtml+alertRows;
-      summaryPanel.innerHTML = `
-        <div class="ts-header">📋 מידע נוסף</div>
-        ${extraRows || `<div style="font-size:11px;opacity:.6;padding:6px 0;">✓ אין מידע חסר</div>`}`;
-
-      // ── Actions panel (revealed by LEFT swipe – admin only) ──
+      // ── Actions panel – RIGHT side (revealed by RIGHT swipe, admin only) ──
       if(isAdmin){
         const actionsPanel = document.createElement('div');
         actionsPanel.className = 'swipe-actions';
         actionsPanel.innerHTML = `
-          <button class="swipe-action-btn" style="background:${editBg};"
-            onclick="editTrip('${trip.id}');closeSwipe();">
-            <svg viewBox="0 0 24 24">
-              <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/>
-              <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/>
-            </svg>עריכה
+          <button class="swipe-action-btn" style="background:${deleteBg};"
+            onclick="closeSwipe();showDeleteConfirm('🗑️','למחוק נסיעה זו?','${trip.from} → ${trip.to}  ${trip.time}',()=>deleteTrip('${trip.id}'));">
+            <svg viewBox="0 0 24 24"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><line x1="10" y1="11" x2="10" y2="17"/><line x1="14" y1="11" x2="14" y2="17"/><path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"/></svg>
+            מחק
           </button>
           <button class="swipe-action-btn" style="background:${copyBg};"
             onclick="duplicateTrip('${trip.id}');closeSwipe();">
-            <svg viewBox="0 0 24 24">
-              <rect x="9" y="9" width="13" height="13" rx="2" ry="2"/>
-              <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/>
-            </svg>שכפול
+            <svg viewBox="0 0 24 24"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
+            שכפל
           </button>
-          <button class="swipe-action-btn" style="background:${deleteBg};"
-            onclick="closeSwipe();showDeleteConfirm('🗑️','למחוק נסיעה זו?','${trip.from} → ${trip.to}  ${trip.time}',()=>deleteTrip('${trip.id}'));">
-            <svg viewBox="0 0 24 24">
-              <polyline points="3 6 5 6 21 6"/>
-              <path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/>
-              <line x1="10" y1="11" x2="10" y2="17"/>
-              <line x1="14" y1="11" x2="14" y2="17"/>
-              <path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"/>
-            </svg>מחיקה
+          <button class="swipe-action-btn" style="background:${editBg};"
+            onclick="editTrip('${trip.id}');closeSwipe();">
+            <svg viewBox="0 0 24 24"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+            ערוך
           </button>`;
         wrapper.appendChild(actionsPanel);
       }
+
+      // ── Summary panel – LEFT side (revealed by LEFT swipe) ──
+      // Only: destination, time, status, alerts
+      const summaryPanel = document.createElement('div');
+      summaryPanel.className = 'swipe-summary';
+      summaryPanel.style.background = isNight
+        ? 'linear-gradient(135deg,#2d1060,#4a1a9a)'
+        : `linear-gradient(135deg,${hexToRgba(cardCol,0.97)},${hexToRgba(cardCol,0.80)})`;
+
+      const hasDelay = trip.actualTime && trip.actualTime !== trip.time;
+      const missingDriver = !trip.driverId;
+      const missingVehicle = !trip.vehicleId;
+      const alertRows = [
+        hasDelay      ? `<div class="ts-row"><span class="ts-icon">⏰</span><div class="ts-content"><span class="ts-label">עיכוב</span><span class="ts-value" style="color:#fca5a5;">${trip.actualTime}</span></div></div>` : '',
+        missingDriver ? `<div class="ts-row"><span class="ts-icon">⚠️</span><div class="ts-content"><span class="ts-label">חסר נהג</span><span class="ts-value" style="color:#fca5a5;">לא שויך</span></div></div>` : '',
+        missingVehicle? `<div class="ts-row"><span class="ts-icon">⚠️</span><div class="ts-content"><span class="ts-label">חסר רכב</span><span class="ts-value" style="color:#fca5a5;">לא שויך</span></div></div>` : '',
+      ].join('');
+
+      summaryPanel.innerHTML = `
+        <div class="ts-row"><span class="ts-icon">📍</span><div class="ts-content"><span class="ts-label">יעד</span><span class="ts-value">${trip.to}</span></div></div>
+        <div class="ts-row"><span class="ts-icon">🕐</span><div class="ts-content"><span class="ts-label">שעה</span><span class="ts-value">${trip.time}</span></div></div>
+        <div class="ts-row"><span class="ts-icon">${st.e}</span><div class="ts-content"><span class="ts-label">סטטוס</span><span class="ts-value">${st.l}</span></div></div>
+        ${alertRows}`;
 
       const inner = document.createElement('div');
       inner.className = 'swipe-inner';
       inner.appendChild(bl);
 
+      // Order: summary (left, z:1), inner (z:2), actions (right, z:1)
       wrapper.appendChild(summaryPanel);
       wrapper.appendChild(inner);
       setupSwipe(wrapper, inner, isAdmin);
@@ -2064,9 +2031,9 @@ function setupDZ(dz){
 }
 
 // ══════ SWIPE SYSTEM ══════
-const ACTIONS_W   = 210;   /* matches .swipe-actions width */
-const SUMMARY_W   = 260;   /* matches .swipe-summary width */
-const SWIPE_THRESH = 50;
+const ACTIONS_W   = 195;   /* matches .swipe-actions width */
+const SUMMARY_W   = 220;   /* matches .swipe-summary width */
+const SWIPE_THRESH = 48;
 let _openActionsWrapper = null;
 let _openSummaryWrapper = null;
 
@@ -2087,7 +2054,7 @@ function haptic(style='light'){
 
 function _animateTo(inner, x){
   inner.classList.remove('is-dragging');
-  inner.style.transition = 'transform .26s cubic-bezier(.25,.46,.45,.94)';
+  inner.style.transition = 'transform .28s cubic-bezier(.25,.46,.45,.94)';
   inner.style.transform  = `translateX(${x}px)`;
 }
 
@@ -2095,35 +2062,25 @@ function closeActions(animate=true){
   if(!_openActionsWrapper) return;
   const inn = _openActionsWrapper.querySelector('.swipe-inner');
   if(inn){ if(animate) _animateTo(inn,0); else{ inn.style.transition='none'; inn.style.transform='translateX(0)'; } }
-  const ap=_openActionsWrapper.querySelector('.swipe-actions');
-  if(ap) ap.classList.remove('is-open');
   _openActionsWrapper = null;
 }
 function closeSummary(animate=true){
   if(!_openSummaryWrapper) return;
   const inn = _openSummaryWrapper.querySelector('.swipe-inner');
   if(inn){ if(animate) _animateTo(inn,0); else{ inn.style.transition='none'; inn.style.transform='translateX(0)'; } }
-  const sp=_openSummaryWrapper.querySelector('.swipe-summary');
-  if(sp) sp.classList.remove('is-open');
   _openSummaryWrapper = null;
 }
 function closeAll(){ closeActions(); closeSummary(); }
-function closeSwipe(){ closeActions(); }
+function closeSwipe(){ closeActions(); closeSummary(); }
 
-function _setPanelOpen(wrapper, panelClass, open){
-  const panel = wrapper.querySelector('.'+panelClass);
-  if(panel) panel.classList.toggle('is-open', open);
-}
+function _setPanelOpen(){}  // no-op — panels always visible behind inner
 
 function setupSwipe(wrapper, inner, canActions=true){
   inner.style.transform = 'translateX(0)';
 
-  const summaryPanel = wrapper.querySelector('.swipe-summary');
-  const actionsPanel = wrapper.querySelector('.swipe-actions');
-
   let startX=0, startY=0;
   let tracking=false, axis=null;
-  let swipeDir=null;   // 'left' | 'right' — locked at first move
+  let swipeDir=null;
   let baseX=0;
   let didHaptic=false;
 
@@ -2136,43 +2093,51 @@ function setupSwipe(wrapper, inner, canActions=true){
   }
 
   inner.addEventListener('touchstart', e=>{
+    // close other open cards
     if(_openActionsWrapper && _openActionsWrapper !== wrapper) closeActions();
     if(_openSummaryWrapper && _openSummaryWrapper !== wrapper) closeSummary();
     baseX    = getLiveX();
     startX   = e.touches[0].clientX;
     startY   = e.touches[0].clientY;
     tracking = true; axis = null; swipeDir = null; didHaptic = false;
-    inner.style.transition = 'none';
+    inner.classList.add('is-dragging');
   },{passive:true});
 
   inner.addEventListener('touchmove', e=>{
     if(!tracking) return;
     const dx = e.touches[0].clientX - startX;
     const dy = e.touches[0].clientY - startY;
-    if(axis === null){
-      if(Math.abs(dx) < 5 && Math.abs(dy) < 5) return;
-      axis = Math.abs(dx) >= Math.abs(dy) ? 'h' : 'v';
-    }
-    if(axis === 'v'){ tracking=false; return; }
 
-    // Lock direction on first horizontal move
-    if(swipeDir === null) swipeDir = dx < 0 ? 'left' : 'right';
+    if(axis === null){
+      if(Math.abs(dx) < 4 && Math.abs(dy) < 4) return;
+      axis = Math.abs(dx) > Math.abs(dy) ? 'h' : 'v';
+    }
+    if(axis === 'v'){ tracking=false; inner.classList.remove('is-dragging'); return; }
+
+    if(swipeDir === null) swipeDir = dx > 0 ? 'right' : 'left';
 
     let raw = baseX + dx;
 
-    // ── STRICT SINGLE DIRECTION CONSTRAINT ──
-    // Left swipe → actions → raw must be in [-ACTIONS_W, 0]
-    // Right swipe → summary → raw must be in [0, +SUMMARY_W]
-    if(swipeDir === 'left'){
-      if(!canActions){ tracking=false; return; }
-      raw = Math.max(-ACTIONS_W - 12, Math.min(0, raw));
+    // RTL: right swipe (+) → reveal actions on right → inner moves RIGHT (+)
+    //      left swipe  (-) → reveal summary on left  → inner moves LEFT  (-)
+    if(swipeDir === 'right'){
+      if(!canActions){ tracking=false; inner.classList.remove('is-dragging'); return; }
+      // resistance past full open
+      if(raw > ACTIONS_W){
+        raw = ACTIONS_W + (raw - ACTIONS_W) * 0.15;
+      }
+      raw = Math.max(0, raw);
     } else {
-      raw = Math.max(0, Math.min(SUMMARY_W + 12, raw));
+      // resistance past full open
+      if(raw < -SUMMARY_W){
+        raw = -SUMMARY_W + (raw + SUMMARY_W) * 0.15;
+      }
+      raw = Math.min(0, raw);
     }
 
     inner.style.transform = `translateX(${raw}px)`;
 
-    if(!didHaptic && Math.abs(raw) > SWIPE_THRESH * 0.8){
+    if(!didHaptic && Math.abs(raw) > SWIPE_THRESH * 0.85){
       haptic(); didHaptic=true;
     }
   },{passive:true});
@@ -2180,28 +2145,28 @@ function setupSwipe(wrapper, inner, canActions=true){
   inner.addEventListener('touchend', e=>{
     if(!tracking) return;
     tracking = false;
+    inner.classList.remove('is-dragging');
     const dx = e.changedTouches[0].clientX - startX;
+    const liveX = getLiveX();
     let target = 0;
 
     if(axis === 'h'){
       if(isActionsOpen()){
-        // actions open: right swipe closes
-        target = (dx > SWIPE_THRESH) ? 0 : -ACTIONS_W;
-        if(target === 0){ _openActionsWrapper = null; _setPanelOpen(wrapper,'swipe-actions',false); }
+        // already open: close if swiped back left past threshold
+        target = (dx < -SWIPE_THRESH || liveX < ACTIONS_W * 0.4) ? 0 : ACTIONS_W;
+        if(target === 0) _openActionsWrapper = null;
       } else if(isSummaryOpen()){
-        // summary open: left swipe closes
-        target = (dx < -SWIPE_THRESH) ? 0 : SUMMARY_W;
-        if(target === 0){ _openSummaryWrapper = null; _setPanelOpen(wrapper,'swipe-summary',false); }
+        // already open: close if swiped back right past threshold
+        target = (dx > SWIPE_THRESH || liveX > -SUMMARY_W * 0.4) ? 0 : -SUMMARY_W;
+        if(target === 0) _openSummaryWrapper = null;
       } else {
-        if(canActions && swipeDir==='left' && dx < -SWIPE_THRESH){
-          target = -ACTIONS_W;
+        if(canActions && swipeDir === 'right' && liveX > SWIPE_THRESH){
+          target = ACTIONS_W;
           _openActionsWrapper = wrapper;
-          _setPanelOpen(wrapper,'swipe-actions',true);
           haptic('heavy');
-        } else if(swipeDir==='right' && dx > SWIPE_THRESH){
-          target = SUMMARY_W;
+        } else if(swipeDir === 'left' && liveX < -SWIPE_THRESH){
+          target = -SUMMARY_W;
           _openSummaryWrapper = wrapper;
-          _setPanelOpen(wrapper,'swipe-summary',true);
           haptic('heavy');
         }
       }
@@ -2210,11 +2175,11 @@ function setupSwipe(wrapper, inner, canActions=true){
     _animateTo(inner, target);
   });
 
+  // tap on open card → close
   inner.addEventListener('click', e=>{
     if(isActionsOpen() || isSummaryOpen()){
-      if(!e.target.closest('.swipe-action-btn')){
-        e.stopPropagation(); closeAll();
-      }
+      const onBtn = e.target.closest('.swipe-action-btn');
+      if(!onBtn){ e.stopPropagation(); closeAll(); }
     }
   });
 }
