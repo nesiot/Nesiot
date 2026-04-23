@@ -699,7 +699,11 @@ body.light-mode .swipe-inner .trip-block{ background: #d1dce8 !important; }
       <option value="staff">🎖️ סגל פיקודי</option>
       <option value="admin">🛡️ מנהל</option>
     </select>
-    <button class="login-btn" onclick="doRegister()">📤 שלח בקשת הרשמה</button>
+    <button class="login-btn" id="regSubmitBtn" onclick="doRegister()">📤 שלח בקשת הרשמה</button>
+    <div id="regError" style="display:none;width:100%;margin-top:10px;padding:10px 14px;background:rgba(239,68,68,.1);border:1px solid rgba(239,68,68,.35);border-radius:10px;align-items:center;gap:8px;">
+      <span style="font-size:18px;flex-shrink:0;">⚠️</span>
+      <span id="regErrorText" style="font-size:13px;font-weight:700;color:#ef4444;"></span>
+    </div>
     <button class="login-back-btn" style="width:100%;margin-top:8px;" onclick="showScreen('loginMain')">← חזרה לכניסה</button>
   </div>
 </div>
@@ -1579,21 +1583,44 @@ function doSuperAdminLogin(){
 }
 
 // ══════ REGISTER ══════
+function showRegError(msg){
+  const d=document.getElementById('regError');
+  const t=document.getElementById('regErrorText');
+  if(d){d.style.display='flex';}
+  if(t){t.textContent=msg;}
+}
+function clearRegError(){
+  const d=document.getElementById('regError');
+  if(d)d.style.display='none';
+}
 async function doRegister(){
-  const name=document.getElementById('regName').value.trim();
+  clearRegError();
+  const name=(document.getElementById('regName')?.value||'').trim();
   const phone=normalizePhone(document.getElementById('regPhone')?.value||'');
   const email=(document.getElementById('regEmail')?.value||'').trim().toLowerCase();
-  const pass=document.getElementById('regPass').value;
+  const pass=document.getElementById('regPass')?.value||'';
   const role=document.getElementById('regRole')?.value||'driver';
-  if(!name){toast('הכנס שם מלא');return;}
-  if(!phone&&!email){toast('הכנס טלפון או מייל');return;}
+  if(!name){showRegError('הכנס שם מלא');return;}
+  if(!phone&&!email){showRegError('הכנס טלפון או מייל');return;}
   const v=validatePassword(pass);
-  if(!v.ok){toast(v.msg);return;}
-  const hashed=await hashPass(pass);
-  const id=uid();
-  r(`users/${id}`).set({id,name,role,phone,email,status:'pending',avatar:'👤',passwordHash:hashed})
-    .then(()=>{toast('✅ בקשת הרשמה נשלחה! המנהל יאשר בקרוב');showScreen('loginMain');})
-    .catch(e=>toast('שגיאה: '+e.message));
+  if(!v.ok){showRegError(v.msg);return;}
+  const safeRole=role==='admin'?'driver':role;
+  const btn=document.getElementById('regSubmitBtn');
+  if(btn){btn.textContent='שולח...';btn.disabled=true;}
+  try{
+    const hashed=await hashPass(pass);
+    const id=uid();
+    await r(`users/${id}`).set({id,name,role:safeRole,phone,email,status:'pending',avatar:'👤',passwordHash:hashed,createdAt:Date.now()});
+    ['regName','regPhone','regEmail','regPass'].forEach(fid=>{const el=document.getElementById(fid);if(el)el.value='';});
+    const bar=document.getElementById('regPassStrength');if(bar){bar.style.background='var(--border2)';bar.style.width='100%';}
+    toast('✅ בקשת הרשמה נשלחה! המנהל יאשר בקרוב');
+    showScreen('loginMain');
+  }catch(e){
+    console.error('Register error:',e);
+    showRegError('שגיאה: '+(e.message||'בדוק חיבור אינטרנט'));
+  }finally{
+    if(btn){btn.textContent='📤 שלח בקשת הרשמה';btn.disabled=false;}
+  }
 }
 
 // ══════ FINISH LOGIN ══════
