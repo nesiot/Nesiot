@@ -1282,8 +1282,8 @@ const db = firebase.database();
 const r  = p => db.ref(p);
 
 // ══════ APP VERSION ══════
-const APP_VERSION = '32';
-const APP_BUILD   = '2026-04-22';
+const APP_VERSION = '33';
+const APP_BUILD   = '2026-04-24';
 
 function publishVersion(){
   r('app/version').transaction(cur=>{
