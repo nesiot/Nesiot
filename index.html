@@ -9,6 +9,32 @@
 <link rel="icon" href="app-icon-1024.png">
 <link rel="manifest" href="manifest.json">
 <link href="https://fonts.googleapis.com/css2?family=Heebo:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
+<script>
+// ── Files app detection: redirect to Safari ──
+(function(){
+  try {
+    var req = new XMLHttpRequest();
+    req.open('GET', 'https://www.google.com', false);
+    req.send();
+  } catch(e) {
+    // Network blocked — likely Files app HTML viewer
+    document.addEventListener('DOMContentLoaded', function(){
+      document.body.innerHTML = '<div style="display:flex;flex-direction:column;align-items:center;justify-content:center;min-height:100vh;background:#0a0f1a;color:#e2eaf7;font-family:-apple-system,sans-serif;text-align:center;padding:32px;gap:20px;direction:rtl;">'
+        + '<div style="font-size:56px;">🌐</div>'
+        + '<div style="font-size:22px;font-weight:900;">יש לפתוח ב-Safari</div>'
+        + '<div style="font-size:15px;color:#7a98c0;line-height:1.6;">האפליקציה דורשת חיבור לאינטרנט.<br>ה-Files app חוסם גישה לרשת.</div>'
+        + '<div style="background:#1c2840;border-radius:16px;padding:20px 24px;margin-top:8px;width:100%;max-width:320px;">'
+        + '<div style="font-size:13px;font-weight:800;color:#f59e0b;margin-bottom:12px;">איך לפתוח ב-Safari:</div>'
+        + '<div style="font-size:13px;color:#7a98c0;text-align:right;line-height:2;">'
+        + '1. לחץ על <b style="color:#e2eaf7;">···</b> בפינה הימנית העליונה<br>'
+        + '2. בחר <b style="color:#e2eaf7;">Open with Safari</b>'
+        + '</div></div>'
+        + '<button onclick="window.location.reload()" style="margin-top:8px;padding:14px 32px;background:#f59e0b;border:none;border-radius:14px;font-size:16px;font-weight:800;cursor:pointer;color:#000;">🔄 נסה שוב</button>'
+        + '</div>';
+    });
+  }
+})();
+</script>
 <style>
 :root {
   --ink:#0a0f1a;--ink2:#111827;--ink3:#1c2840;--panel:#162032;
@@ -65,7 +91,16 @@ body.light-mode .login-input{background:var(--ink2);color:var(--txt);}
 .sensitive-field-label{font-size:10px;font-weight:800;color:var(--txt3);letter-spacing:.8px;text-transform:uppercase;width:60px;flex-shrink:0;}
 .sensitive-field-val{flex:1;font-size:13px;font-weight:800;color:var(--txt);}
 
-/* REMEMBER ME TOGGLE */
+/* ── RECURRING TRIPS ── */
+.recur-badge{display:inline-flex;align-items:center;gap:3px;padding:2px 7px;border-radius:999px;font-size:10px;font-weight:800;background:rgba(168,85,247,.13);color:var(--purple);border:1px solid rgba(168,85,247,.28);margin-right:4px;}
+.recur-section{background:rgba(168,85,247,.06);border:1px solid rgba(168,85,247,.18);border-radius:10px;padding:12px;margin-top:10px;}
+.recur-section-title{font-size:11px;font-weight:800;color:var(--purple);margin-bottom:8px;letter-spacing:.5px;}
+/* ── ADVANCED SEARCH ── */
+.adv-search-panel{background:var(--panel);border:1px solid var(--border);border-radius:12px;padding:12px;margin:8px 12px 0;}
+.adv-search-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:8px;}
+.adv-search-grid select,.adv-search-grid input{width:100%;padding:9px 11px;border-radius:8px;background:var(--ink3);border:1px solid var(--border2);color:var(--txt);font-size:13px;outline:none;}
+.adv-search-actions{display:flex;gap:8px;}
+.search-toggle-btn{background:none;border:none;color:var(--txt3);font-size:12px;font-weight:700;cursor:pointer;padding:0 4px;text-decoration:underline;}
 .remember-me-row{display:flex;align-items:center;gap:10px;width:100%;max-width:320px;margin-top:10px;padding:10px 12px;background:var(--ink3);border:1px solid var(--border2);border-radius:10px;cursor:pointer;user-select:none;}
 .remember-me-row input[type=checkbox]{width:18px;height:18px;accent-color:var(--amber);cursor:pointer;flex-shrink:0;}
 .remember-me-row label{font-size:13px;font-weight:700;color:var(--txt2);cursor:pointer;flex:1;}
@@ -757,13 +792,47 @@ body.light-mode .swipe-inner .trip-block{ background: #d1dce8 !important; }
 </div>
 
 <div class="page" id="page-trips">
-  <div class="search-bar"><input type="search" id="tripSearch" placeholder="חיפוש..." oninput="renderTripsList()"></div>
+  <div class="search-bar" style="display:flex;align-items:center;gap:8px;">
+    <input type="search" id="tripSearch" placeholder="חיפוש מהיר..." oninput="renderTripsList()" style="flex:1;">
+    <button class="search-toggle-btn" onclick="toggleAdvSearch()" id="advSearchToggle">⚙️ סינון</button>
+  </div>
+  <!-- ADVANCED SEARCH PANEL -->
+  <div class="adv-search-panel" id="advSearchPanel" style="display:none;">
+    <div class="adv-search-grid">
+      <select id="fltDriver" onchange="renderTripsList()">
+        <option value="">כל הנהגים</option>
+      </select>
+      <select id="fltVehicle" onchange="renderTripsList()">
+        <option value="">כל הרכבים</option>
+      </select>
+      <select id="fltPlatoon" onchange="renderTripsList()">
+        <option value="">כל הפלגות</option>
+      </select>
+      <select id="fltStatus" onchange="renderTripsList()">
+        <option value="">כל הסטטוסים</option>
+        <option value="pending">ממתין</option>
+        <option value="moving">בדרך</option>
+        <option value="done">בוצע</option>
+        <option value="delayed">עיכוב</option>
+        <option value="cancelled">בוטל</option>
+      </select>
+      <input type="date" id="fltDateFrom" placeholder="מתאריך" onchange="renderTripsList()" style="grid-column:1;">
+      <input type="date" id="fltDateTo" placeholder="עד תאריך" onchange="renderTripsList()">
+    </div>
+    <div class="adv-search-actions">
+      <button class="btn btn-ghost btn-sm" onclick="clearAdvSearch()">נקה סינון</button>
+      <label style="display:flex;align-items:center;gap:6px;font-size:12px;cursor:pointer;">
+        <input type="checkbox" id="fltRecurOnly" onchange="renderTripsList()"> נסיעות חוזרות בלבד
+      </label>
+    </div>
+  </div>
   <div class="filter-chips" id="tripFilters">
     <div class="filter-chip active" onclick="setTripFilter('all',this)">הכל</div>
     <div class="filter-chip" onclick="setTripFilter('pending',this)">ממתין</div>
     <div class="filter-chip" onclick="setTripFilter('done',this)">בוצע</div>
     <div class="filter-chip" onclick="setTripFilter('delayed',this)">עיכוב</div>
     <div class="filter-chip" onclick="setTripFilter('cancelled',this)">בוטל</div>
+    <div class="filter-chip" onclick="setTripFilter('recurring',this)">🔁 חוזרות</div>
   </div>
   <div class="filter-chips" id="driverFilters"></div>
   <div id="tripsList" class="card" style="margin:0 12px;"></div>
@@ -831,8 +900,15 @@ body.light-mode .swipe-inner .trip-block{ background: #d1dce8 !important; }
       <button class="btn btn-ghost btn-block" style="margin-top:8px;" onclick="openHierarchyManager()">⚙️ נהל היררכיה</button>
     </div>
 
-    <div class="sec-title">ייצוא</div>
-    <div style="padding:0 12px 12px;"><button class="btn btn-ghost btn-block" onclick="exportData()">📤 ייצוא JSON</button></div>
+    <div class="sec-title">📤 ייצוא נתונים</div>
+    <div style="padding:0 12px 12px;">
+      <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;margin-bottom:10px;">
+        <button class="btn btn-ghost" style="font-size:11px;font-weight:800;padding:10px 6px;" onclick="openExportModal('trips')">🚐<br>נסיעות</button>
+        <button class="btn btn-ghost" style="font-size:11px;font-weight:800;padding:10px 6px;" onclick="openExportModal('drivers')">👤<br>נהגים</button>
+        <button class="btn btn-ghost" style="font-size:11px;font-weight:800;padding:10px 6px;" onclick="openExportModal('vehicles')">🚌<br>רכבים</button>
+      </div>
+      <button class="btn btn-ghost btn-block" style="font-size:12px;" onclick="exportData()">📦 ייצוא JSON (גיבוי מלא)</button>
+    </div>
 
     <div class="sec-title">🔔 הגדרות התראות</div>
     <div style="padding:0 12px 12px;"><div class="card" id="adminNotifCard"></div></div>
@@ -1022,7 +1098,36 @@ body.light-mode .swipe-inner .trip-block{ background: #d1dce8 !important; }
         <input type="text" id="fTripCommander" placeholder="מי יושב ליד הנהג ושומר על ערנותו...">
       </div>
       <div class="field"><label>הערות</label><textarea id="fNotes" placeholder="הערות..."></textarea></div>
+      <!-- נסיעה חוזרת -->
+      <div class="recur-section" id="recurSection">
+        <div class="recur-section-title">🔁 נסיעה חוזרת (אופציונלי)</div>
+        <div class="field" style="margin-bottom:8px;">
+          <label>סוג חזרה</label>
+          <select id="fRecurType" onchange="onRecurTypeChange()">
+            <option value="">— חד פעמית —</option>
+            <option value="daily">📅 יומית</option>
+            <option value="weekly">📆 שבועית</option>
+            <option value="fixed">📌 קבועה (ללא הגבלה)</option>
+          </select>
+        </div>
+        <div id="recurDateRange" style="display:none;">
+          <div class="field-row">
+            <div class="field"><label>מתאריך</label><input type="date" id="fRecurFrom"></div>
+            <div class="field"><label>עד תאריך</label><input type="date" id="fRecurTo"></div>
+          </div>
+        </div>
+        <div id="recurWeekdays" style="display:none;margin-bottom:6px;">
+          <label style="font-size:11px;color:var(--txt2);display:block;margin-bottom:6px;">ימים בשבוע</label>
+          <div style="display:flex;gap:6px;flex-wrap:wrap;">
+            ${['ראשון','שני','שלישי','רביעי','חמישי','שישי','שבת'].map((d,i)=>`
+              <label style="display:flex;align-items:center;gap:3px;font-size:11px;font-weight:700;cursor:pointer;padding:4px 8px;border-radius:6px;border:1px solid var(--border2);background:var(--ink3);">
+                <input type="checkbox" class="recur-day-cb" value="${i}" style="width:13px;height:13px;"> ${d}
+              </label>`).join('')}
+          </div>
+        </div>
+      </div>
       <input type="hidden" id="fEditId">
+      <input type="hidden" id="fRecurGroupId">
     </div>
     <div class="modal-footer"><button class="btn btn-amber btn-block" onclick="saveTrip()">שמור</button></div>
   </div>
@@ -1033,6 +1138,40 @@ body.light-mode .swipe-inner .trip-block{ background: #d1dce8 !important; }
     <div class="modal-handle"></div>
     <div class="modal-head"><span>פרטי נסיעה</span><button class="modal-close" onclick="closeModal('tripDetailModal')">✕</button></div>
     <div class="modal-body" id="tripDetailBody"></div>
+  </div>
+</div>
+
+<div class="modal-overlay" id="recurEditModal">
+  <div class="modal">
+    <div class="modal-handle"></div>
+    <div class="modal-head"><span>🔁 עריכת נסיעה חוזרת</span><button class="modal-close" onclick="closeModal('recurEditModal')">✕</button></div>
+    <div class="modal-body">
+      <p style="font-size:14px;font-weight:700;margin-bottom:14px;">מה לשנות?</p>
+      <div style="display:flex;flex-direction:column;gap:8px;">
+        <button class="btn btn-ghost" style="text-align:right;justify-content:flex-start;" onclick="recurEditScope('this')">📌 רק נסיעה זו</button>
+        <button class="btn btn-ghost" style="text-align:right;justify-content:flex-start;" onclick="recurEditScope('future')">📅 זו וכל הנסיעות הבאות</button>
+        <button class="btn btn-ghost" style="text-align:right;justify-content:flex-start;" onclick="recurEditScope('all')">🔁 כל הנסיעות בסדרה</button>
+      </div>
+    </div>
+    <input type="hidden" id="recurEditTripId">
+    <input type="hidden" id="recurEditGroupId">
+  </div>
+</div>
+
+<div class="modal-overlay" id="recurDeleteModal">
+  <div class="modal">
+    <div class="modal-handle"></div>
+    <div class="modal-head"><span>🗑️ ביטול/מחיקת חוזרת</span><button class="modal-close" onclick="closeModal('recurDeleteModal')">✕</button></div>
+    <div class="modal-body">
+      <p style="font-size:14px;font-weight:700;margin-bottom:14px;">מה למחוק?</p>
+      <div style="display:flex;flex-direction:column;gap:8px;">
+        <button class="btn btn-ghost" style="text-align:right;justify-content:flex-start;" onclick="recurDeleteScope('this')">📌 רק נסיעה זו</button>
+        <button class="btn btn-ghost" style="text-align:right;justify-content:flex-start;" onclick="recurDeleteScope('future')">📅 זו וכל הנסיעות הבאות</button>
+        <button class="btn btn-danger" style="text-align:right;justify-content:flex-start;" onclick="recurDeleteScope('all')">🔁 כל הנסיעות בסדרה</button>
+      </div>
+    </div>
+    <input type="hidden" id="recurDeleteTripId">
+    <input type="hidden" id="recurDeleteGroupId">
   </div>
 </div>
 
@@ -1266,6 +1405,11 @@ body.light-mode .swipe-inner .trip-block{ background: #d1dce8 !important; }
 </div>
 
 <!-- EmailJS for real OTP emails -->
+<!-- jsPDF for PDF export -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.8.2/jspdf.plugin.autotable.min.js"></script>
+<!-- SheetJS for Excel export -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/@emailjs/browser@4/dist/email.min.js" crossorigin="anonymous"></script>
 <!-- Firebase compat SDK -->
 <script src="https://cdnjs.cloudflare.com/ajax/libs/firebase/9.23.0/firebase-app-compat.min.js"></script>
@@ -1350,6 +1494,7 @@ const S = { trips:{}, drivers:{}, vehicles:{}, proposals:{}, customTags:{}, hier
 let currentUser=null, currentPage='schedule';
 let undoStack=[], undoTimer=null, dragTripId=null;
 let tfStatus='all', tfDriver='', selColor='#3b82f6', commentOff=null;
+let _advSearchOpen=false;
 let lightMode = localStorage.getItem('theme')==='light';
 let selectedDriverId = '';
 let otpTimer=null, otpSeconds=0, loginUserData=null, loginMethod='phone';
@@ -1984,12 +2129,12 @@ function renderSchedule(){
             מחק
           </button>
           <button class="swipe-action-btn" style="background:${copyBg};"
-            onclick="duplicateTrip('${trip.id}');closeSwipe();">
+            onclick="haptic('medium');duplicateTrip('${trip.id}');closeSwipe();">
             <svg viewBox="0 0 24 24"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
             שכפל
           </button>
           <button class="swipe-action-btn" style="background:${editBg};"
-            onclick="editTrip('${trip.id}');closeSwipe();">
+            onclick="haptic('light');editTrip('${trip.id}');closeSwipe();">
             <svg viewBox="0 0 24 24"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
             ערוך
           </button>`;
@@ -2076,8 +2221,13 @@ function hexToRgba(hex, alpha){
 // Haptic feedback (works on iOS Safari 13+, Android Chrome)
 function haptic(style='light'){
   try{
-    if(window.navigator?.vibrate) window.navigator.vibrate(style==='heavy'?[20]:8);
-    // iOS Taptic Engine via DeviceMotionEvent (no-op on non-iOS)
+    if(!/Mobi|Android|iPhone|iPad/i.test(navigator.userAgent)) return;
+    if(window.navigator?.vibrate){
+      const pat={light:8,medium:[12,8,12],heavy:[20,10,20],success:[8,4,8,4,16],error:[20,10,20,10,20]}[style]||8;
+      window.navigator.vibrate(pat);
+    }
+    // iOS: try UIImpactFeedbackGenerator via webkit (available in PWA/WKWebView)
+    if(window.webkit?.messageHandlers?.haptic) window.webkit.messageHandlers.haptic.postMessage(style);
   }catch(e){}
 }
 
@@ -2316,6 +2466,13 @@ function openAddTrip(day,time){
   document.getElementById('fPassengers').value='';
   clearStops();
   popSelects(document.getElementById('fDriver'),document.getElementById('fVehicle'));
+  // reset recurring
+  const frt=document.getElementById('fRecurType'); if(frt) frt.value='';
+  const frg=document.getElementById('fRecurGroupId'); if(frg) frg.value='';
+  const frf=document.getElementById('fRecurFrom'); if(frf) frf.value='';
+  const frto=document.getElementById('fRecurTo'); if(frto) frto.value='';
+  document.querySelectorAll('.recur-day-cb').forEach(cb=>cb.checked=false);
+  onRecurTypeChange();
   openModal('tripModal');
 }
 function saveTrip(){
@@ -2323,10 +2480,177 @@ function saveTrip(){
   const day=parseInt(document.getElementById('fDay').value);
   const ws=weekStart(S.weekOffset);
   const dd=new Date(ws);dd.setDate(ws.getDate()+day);
-  const data={time:document.getElementById('fTime').value,from:document.getElementById('fFrom').value.trim()||'לא צוין',to:document.getElementById('fTo').value.trim()||'לא צוין',stops:getStops(),driverId:document.getElementById('fDriver').value,vehicleId:document.getElementById('fVehicle').value,passengers:document.getElementById('fPassengers').value,type:document.getElementById('fType').value,notes:document.getElementById('fNotes').value.trim(),commander:document.getElementById('fCommander').value.trim(),tripCommander:(document.getElementById('fTripCommander')?.value||'').trim(),date:ds(dd),sentBy:currentUser?.name||''};
-  if(editId){r(`trips/${editId}`).update(data);toast('נסיעה עודכנה ✓');}
-  else{const id=uid();r(`trips/${id}`).set({...data,id,status:'pending',comments:{}});S.selDay=day;toast('נסיעה נוספה ✓');}
+  const baseData={
+    time:document.getElementById('fTime').value,
+    from:document.getElementById('fFrom').value.trim()||'לא צוין',
+    to:document.getElementById('fTo').value.trim()||'לא צוין',
+    stops:getStops(),
+    driverId:document.getElementById('fDriver').value,
+    vehicleId:document.getElementById('fVehicle').value,
+    passengers:document.getElementById('fPassengers').value,
+    type:document.getElementById('fType').value,
+    notes:document.getElementById('fNotes').value.trim(),
+    commander:document.getElementById('fCommander').value.trim(),
+    tripCommander:(document.getElementById('fTripCommander')?.value||'').trim(),
+    sentBy:currentUser?.name||''
+  };
+
+  const recurType=document.getElementById('fRecurType')?.value||'';
+
+  if(editId){
+    // עריכה — בדוק אם נסיעה חוזרת
+    const existing=S.trips[editId];
+    if(existing?.recurGroupId&&!document.getElementById('fRecurGroupId').value){
+      // פתח מודל בחירת scope
+      document.getElementById('recurEditTripId').value=editId;
+      document.getElementById('recurEditGroupId').value=existing.recurGroupId;
+      // שמור data זמנית לשימוש ב-recurEditScope
+      window._pendingTripData={...baseData,date:ds(dd)};
+      closeModal('tripModal');
+      openModal('recurEditModal');
+      return;
+    }
+    r(`trips/${editId}`).update({...baseData,date:ds(dd)});
+    toast('נסיעה עודכנה ✓');
+    closeModal('tripModal');
+    return;
+  }
+
+  // יצירה חדשה
+  if(!recurType){
+    // חד פעמית
+    const id=uid();
+    r(`trips/${id}`).set({...baseData,id,date:ds(dd),status:'pending',comments:{}});
+    S.selDay=day; toast('נסיעה נוספה ✓');
+    closeModal('tripModal');
+    return;
+  }
+
+  // נסיעה חוזרת
+  _createRecurringTrips(baseData, recurType, dd);
   closeModal('tripModal');
+}
+
+function _createRecurringTrips(baseData, recurType, startDate){
+  const groupId=uid(); // ID קבוצת חזרה
+  const recurFrom=document.getElementById('fRecurFrom')?.value;
+  const recurTo=document.getElementById('fRecurTo')?.value;
+  const fromDate=recurFrom?new Date(recurFrom):startDate;
+  const toDate=recurTo?new Date(recurTo):null;
+
+  const checkedDays=[...document.querySelectorAll('.recur-day-cb:checked')].map(cb=>parseInt(cb.value));
+
+  let dates=[];
+
+  if(recurType==='daily'){
+    if(!toDate){toast('בחר תאריך סיום לנסיעה יומית');return;}
+    const cur=new Date(fromDate);
+    while(cur<=toDate){
+      dates.push(ds(cur));
+      cur.setDate(cur.getDate()+1);
+    }
+  } else if(recurType==='weekly'){
+    if(!toDate){toast('בחר תאריך סיום לנסיעה שבועית');return;}
+    const days=checkedDays.length?checkedDays:[startDate.getDay()];
+    const cur=new Date(fromDate);
+    while(cur<=toDate){
+      if(days.includes(cur.getDay())) dates.push(ds(cur));
+      cur.setDate(cur.getDate()+1);
+    }
+  } else if(recurType==='fixed'){
+    // קבועה — מייצר 12 שבועות קדימה (84 ימים), מניעת כפילויות
+    const days=checkedDays.length?checkedDays:[startDate.getDay()];
+    const cur=new Date(fromDate);
+    const end=new Date(fromDate); end.setDate(end.getDate()+84);
+    while(cur<=end){
+      if(days.includes(cur.getDay())) dates.push(ds(cur));
+      cur.setDate(cur.getDate()+1);
+    }
+  }
+
+  if(!dates.length){toast('לא נוצרו נסיעות — בדוק תאריכים וימים');return;}
+
+  // מניעת כפילויות: בדוק נסיעות קיימות באותו groupId
+  const existingDates=new Set(
+    Object.values(S.trips||{})
+      .filter(t=>t.recurGroupId===groupId)
+      .map(t=>t.date)
+  );
+
+  let created=0;
+  dates.forEach(date=>{
+    if(existingDates.has(date)) return; // דלג על כפילויות
+    const id=uid();
+    r(`trips/${id}`).set({
+      ...baseData, id, date,
+      status:'pending', comments:{},
+      recurGroupId:groupId,
+      recurType
+    });
+    created++;
+  });
+
+  toast(`🔁 ${created} נסיעות חוזרות נוצרו ✓`);
+}
+
+// ── Recur type change handler ──
+function onRecurTypeChange(){
+  const val=document.getElementById('fRecurType')?.value||'';
+  const dateRange=document.getElementById('recurDateRange');
+  const weekdays=document.getElementById('recurWeekdays');
+  if(dateRange) dateRange.style.display=val&&val!=='fixed'?'block':'none';
+  if(weekdays)  weekdays.style.display=(val==='weekly'||val==='fixed')?'block':'none';
+  // הצב תאריך ברירת מחדל
+  if(val==='daily'||val==='weekly'){
+    const frf=document.getElementById('fRecurFrom');
+    const frt2=document.getElementById('fRecurTo');
+    if(frf&&!frf.value) frf.value=ds(new Date());
+    if(frt2&&!frt2.value){ const e=new Date(); e.setDate(e.getDate()+30); frt2.value=ds(e); }
+  }
+}
+
+// ── Recurring edit scope ──
+function recurEditScope(scope){
+  const tripId=document.getElementById('recurEditTripId').value;
+  const groupId=document.getElementById('recurEditGroupId').value;
+  const data=window._pendingTripData||{};
+  closeModal('recurEditModal');
+
+  if(scope==='this'){
+    r(`trips/${tripId}`).update(data).then(()=>toast('נסיעה זו עודכנה ✓'));
+  } else if(scope==='future'){
+    const trip=S.trips[tripId];
+    const fromDate=trip?.date||'';
+    const toUpdate=Object.values(S.trips||{}).filter(t=>t.recurGroupId===groupId&&t.date>=fromDate);
+    toUpdate.forEach(t=>r(`trips/${t.id}`).update(data));
+    toast(`עודכנו ${toUpdate.length} נסיעות ✓`);
+  } else if(scope==='all'){
+    const toUpdate=Object.values(S.trips||{}).filter(t=>t.recurGroupId===groupId);
+    toUpdate.forEach(t=>r(`trips/${t.id}`).update(data));
+    toast(`עודכנו ${toUpdate.length} נסיעות בסדרה ✓`);
+  }
+  window._pendingTripData=null;
+}
+
+// ── Recurring delete scope ──
+function recurDeleteScope(scope){
+  const tripId=document.getElementById('recurDeleteTripId').value;
+  const groupId=document.getElementById('recurDeleteGroupId').value;
+  closeModal('recurDeleteModal');
+
+  if(scope==='this'){
+    r(`trips/${tripId}`).remove().then(()=>toast('נסיעה נמחקה ✓'));
+  } else if(scope==='future'){
+    const trip=S.trips[tripId];
+    const fromDate=trip?.date||'';
+    const toDel=Object.values(S.trips||{}).filter(t=>t.recurGroupId===groupId&&t.date>=fromDate);
+    toDel.forEach(t=>r(`trips/${t.id}`).remove());
+    toast(`נמחקו ${toDel.length} נסיעות ✓`);
+  } else if(scope==='all'){
+    const toDel=Object.values(S.trips||{}).filter(t=>t.recurGroupId===groupId);
+    toDel.forEach(t=>r(`trips/${t.id}`).remove());
+    toast(`נמחקו ${toDel.length} נסיעות בסדרה ✓`);
+  }
 }
 function openTripDetail(id){
   const trip=S.trips[id]; if(!trip)return;
@@ -2358,6 +2682,7 @@ function openTripDetail(id){
     ${trip.sentBy?`<div style="background:rgba(59,130,246,.08);border:1px solid rgba(59,130,246,.2);border-radius:8px;padding:8px 12px;margin-bottom:10px;font-size:13px;">📤 נשלח ע"י: <strong>${trip.sentBy}</strong></div>`:''}
     ${trip.notes?`<div style="background:var(--ink3);border-radius:8px;padding:10px;margin-bottom:12px;font-size:13px;">📝 ${trip.notes}</div>`:''}
     ${delay?`<div style="background:rgba(239,68,68,.1);border-radius:8px;padding:10px;margin-bottom:12px;color:var(--red);">⏰ עיכוב ${delay} דק׳</div>`:''}
+    ${trip.recurGroupId?`<div style="background:rgba(168,85,247,.08);border:1px solid rgba(168,85,247,.25);border-radius:8px;padding:8px 12px;margin-bottom:10px;font-size:13px;">🔁 נסיעה חוזרת: <strong>${trip.recurType==='daily'?'יומית':trip.recurType==='weekly'?'שבועית':'קבועה'}</strong></div>`:''}
     <div style="margin-bottom:12px;"><p style="font-size:11px;color:var(--txt3);margin-bottom:6px;">שנה סטטוס:</p>
       <div style="display:flex;gap:6px;flex-wrap:wrap;">${Object.entries(SM).map(([k,v])=>`<button class="btn btn-ghost btn-sm" onclick="setStatus('${trip.id}','${k}');closeModal('tripDetailModal');">${v.e}${v.l}</button>`).join('')}</div>
     </div>
@@ -2370,7 +2695,7 @@ function openTripDetail(id){
       ${isAdmin?`<button class="btn btn-ghost btn-sm" onclick="openMoveModal('${trip.id}');closeModal('tripDetailModal');">↕️ הזז</button>`:''}
       <button class="btn btn-ghost btn-sm" onclick="openComments('${trip.id}');closeModal('tripDetailModal');">💬${cmtCnt?' ('+cmtCnt+')':''}</button>
       <button class="btn btn-ghost btn-sm" onclick="doNav('${trip.id}')">🗺️ ניווט</button>
-      ${isAdmin?`<button class="btn btn-danger btn-sm" onclick="deleteTrip('${trip.id}');closeModal('tripDetailModal');">🗑️</button>`:''}
+      ${isAdmin?`<button class="btn btn-danger btn-sm" onclick="deleteTrip('${trip.id}');">🗑️${trip.recurGroupId?' סדרה':''}</button>`:''}
     </div>`;
   openModal('tripDetailModal');
 }
@@ -2404,19 +2729,26 @@ function editTrip(id){
   popSelects(document.getElementById('fDriver'),document.getElementById('fVehicle'));
   document.getElementById('fDriver').value=trip.driverId||'';
   document.getElementById('fVehicle').value=trip.vehicleId||'';
+  // recurring fields — בעריכה לא מציגים עריכת סדרה כאן (מטופל ב-saveTrip)
+  const frt=document.getElementById('fRecurType'); if(frt) frt.value='';
+  const frg=document.getElementById('fRecurGroupId'); if(frg) frg.value=trip.recurGroupId||'';
+  onRecurTypeChange();
   openModal('tripModal');
 }
 function deleteTrip(id){
   const trip=S.trips[id]; if(!trip)return;
-  pushUndo('delete_trip',{...trip},'נסיעה נמחקה');
-  // Optimistic UI update – remove from local state immediately so stats update
-  delete S.trips[id];
   closeModal('tripDetailModal');
+  if(trip.recurGroupId){
+    // נסיעה חוזרת — שאל על scope
+    document.getElementById('recurDeleteTripId').value=id;
+    document.getElementById('recurDeleteGroupId').value=trip.recurGroupId;
+    openModal('recurDeleteModal');
+    return;
+  }
+  pushUndo('delete_trip',{...trip},'נסיעה נמחקה');
+  delete S.trips[id];
   render();
-  r(`trips/${id}`).remove().catch(e=>{
-    // Rollback on error
-    S.trips[id]=trip; render(); toast('שגיאה: '+e.message);
-  });
+  r(`trips/${id}`).remove().catch(e=>{ S.trips[id]=trip; render(); toast('שגיאה: '+e.message); });
   toast('נסיעה נמחקה');
 }
 function setStatus(id,status){
@@ -2773,21 +3105,126 @@ function renderDriverView(){
 }
 
 // ══════ TRIPS LIST ══════
-function setTripFilter(f,el){tfStatus=f;document.querySelectorAll('#tripFilters .filter-chip').forEach(c=>c.classList.remove('active'));el.classList.add('active');renderTripsList();}
+function toggleAdvSearch(){
+  _advSearchOpen=!_advSearchOpen;
+  const panel=document.getElementById('advSearchPanel');
+  const btn=document.getElementById('advSearchToggle');
+  if(panel) panel.style.display=_advSearchOpen?'block':'none';
+  if(btn) btn.textContent=_advSearchOpen?'✕ סגור':'⚙️ סינון';
+  if(_advSearchOpen) _populateAdvSearchSelects();
+}
+
+function _populateAdvSearchSelects(){
+  const dSel=document.getElementById('fltDriver');
+  const vSel=document.getElementById('fltVehicle');
+  const pSel=document.getElementById('fltPlatoon');
+  if(dSel){
+    const cur=dSel.value;
+    dSel.innerHTML='<option value="">כל הנהגים</option>'+drivers().map(d=>`<option value="${d.id}">${d.name}</option>`).join('');
+    dSel.value=cur;
+  }
+  if(vSel){
+    const cur=vSel.value;
+    vSel.innerHTML='<option value="">כל הרכבים</option>'+vehicles().map(v=>`<option value="${v.id}">${v.name}</option>`).join('');
+    vSel.value=cur;
+  }
+  if(pSel){
+    const cur=pSel.value;
+    const platoons=Object.values(S.hierarchy||{}).map(t=>t.name).filter(Boolean);
+    pSel.innerHTML='<option value="">כל הפלגות</option>'+platoons.map(p=>`<option value="${p}">${p}</option>`).join('');
+    pSel.value=cur;
+  }
+}
+
+function clearAdvSearch(){
+  ['fltDriver','fltVehicle','fltPlatoon','fltStatus','fltDateFrom','fltDateTo'].forEach(id=>{
+    const el=document.getElementById(id); if(el) el.value='';
+  });
+  const rc=document.getElementById('fltRecurOnly'); if(rc) rc.checked=false;
+  renderTripsList();
+}
+
+function setTripFilter(f,el){
+  tfStatus=f;
+  document.querySelectorAll('#tripFilters .filter-chip').forEach(c=>c.classList.remove('active'));
+  el.classList.add('active');
+  renderTripsList();
+}
 function setDriverFilter(dId){tfDriver=dId;renderTripsList();}
+
 function renderTripsList(){
-  const search=(document.getElementById('tripSearch').value||'').toLowerCase();
+  const search=(document.getElementById('tripSearch')?.value||'').toLowerCase();
+  const fltDriver=document.getElementById('fltDriver')?.value||'';
+  const fltVehicle=document.getElementById('fltVehicle')?.value||'';
+  const fltPlatoon=document.getElementById('fltPlatoon')?.value||'';
+  const fltStatus=document.getElementById('fltStatus')?.value||'';
+  const fltDateFrom=document.getElementById('fltDateFrom')?.value||'';
+  const fltDateTo=document.getElementById('fltDateTo')?.value||'';
+  const fltRecurOnly=document.getElementById('fltRecurOnly')?.checked||false;
+
   let arr=trips();
-  if(tfStatus!=='all') arr=arr.filter(t=>t.status===tfStatus);
+
+  // chip filter
+  if(tfStatus==='recurring'){
+    arr=arr.filter(t=>!!t.recurGroupId);
+  } else if(tfStatus!=='all'){
+    arr=arr.filter(t=>t.status===tfStatus);
+  }
+
+  // driver chip filter
   if(tfDriver) arr=arr.filter(t=>t.driverId===tfDriver);
-  if(search) arr=arr.filter(t=>t.from.toLowerCase().includes(search)||t.to.toLowerCase().includes(search)||(gd(t.driverId)?.name||'').toLowerCase().includes(search));
+
+  // advanced filters
+  if(fltDriver)    arr=arr.filter(t=>t.driverId===fltDriver);
+  if(fltVehicle)   arr=arr.filter(t=>t.vehicleId===fltVehicle);
+  if(fltStatus)    arr=arr.filter(t=>t.status===fltStatus);
+  if(fltDateFrom)  arr=arr.filter(t=>t.date>=fltDateFrom);
+  if(fltDateTo)    arr=arr.filter(t=>t.date<=fltDateTo);
+  if(fltRecurOnly) arr=arr.filter(t=>!!t.recurGroupId);
+  if(fltPlatoon){
+    // מסנן לפי פלגה: בדוק את הנהג מול הפלגה
+    const platoonTree=Object.values(S.hierarchy||{}).find(t=>t.name===fltPlatoon);
+    if(platoonTree){
+      const platoonUserIds=new Set(Object.values(platoonTree.nodes||{}).map(n=>n.userId).filter(Boolean));
+      arr=arr.filter(t=>{
+        const drv=gd(t.driverId);
+        return drv&&(platoonUserIds.has(drv.linkedUserId)||platoonUserIds.has(drv.id));
+      });
+    }
+  }
+
+  // text search
+  if(search) arr=arr.filter(t=>
+    (t.from||'').toLowerCase().includes(search)||
+    (t.to||'').toLowerCase().includes(search)||
+    (gd(t.driverId)?.name||'').toLowerCase().includes(search)||
+    (t.sentBy||'').toLowerCase().includes(search)||
+    (t.notes||'').toLowerCase().includes(search)||
+    (t.type||'').toLowerCase().includes(search)
+  );
+
   arr.sort((a,b)=>a.date.localeCompare(b.date)||a.time.localeCompare(b.time));
-  document.getElementById('driverFilters').innerHTML=`<div class="filter-chip${!tfDriver?' active':''}" onclick="setDriverFilter('')">כל הנהגים</div>`+drivers().map(d=>`<div class="filter-chip${tfDriver===d.id?' active':''}" onclick="setDriverFilter('${d.id}')" style="${tfDriver===d.id?`background:${d.color};border-color:${d.color};color:#000;`:''}">${d.name}</div>`).join('');
+
+  // driver chip row
+  document.getElementById('driverFilters').innerHTML=
+    `<div class="filter-chip${!tfDriver?' active':''}" onclick="setDriverFilter('')">כל הנהגים</div>`
+    +drivers().map(d=>`<div class="filter-chip${tfDriver===d.id?' active':''}" onclick="setDriverFilter('${d.id}')" style="${tfDriver===d.id?`background:${d.color};border-color:${d.color};color:#000;`:''}">${d.name}</div>`).join('');
+
+  // active filter indicator
+  const hasAdv=fltDriver||fltVehicle||fltPlatoon||fltStatus||fltDateFrom||fltDateTo||fltRecurOnly;
+  const toggleBtn=document.getElementById('advSearchToggle');
+  if(toggleBtn) toggleBtn.style.color=hasAdv?'var(--amber)':'';
+
   document.getElementById('tripsList').innerHTML=arr.length?arr.map(trip=>{
     const driver=gd(trip.driverId),st=SM[trip.status||'pending'];
+    const recurBadge=trip.recurGroupId?`<span class="recur-badge">🔁 ${trip.recurType==='daily'?'יומית':trip.recurType==='weekly'?'שבועית':'קבועה'}</span>`:'';
     return`<div class="list-item" onclick="openTripDetail('${trip.id}')">
       ${driver&&driver.avatar?avatarHtml(driver.avatar,36,'8px'):`<div class="li-icon" style="background:rgba(59,130,246,.1);border-right:3px solid ${driver?.color||'#3b82f6'};">🚗</div>`}
-      <div class="li-body"><strong>${trip.from} → ${trip.to}</strong><small>${trip.date} ${trip.time}${driver?' · '+driver.name:''}${trip.sentBy?' · 📤'+trip.sentBy:''}</small></div>
+      <div class="li-body">
+        <strong>${trip.from} → ${trip.to}</strong>
+        <small>${trip.date} ${trip.time}${driver?' · '+driver.name:''}${trip.sentBy?' · 📤'+trip.sentBy:''}</small>
+        ${recurBadge?`<div style="margin-top:2px;">${recurBadge}</div>`:''}
+      </div>
       <span class="badge ${st.b}">${st.e}${st.l}</span>
     </div>`;
   }).join(''):'<div class="empty"><div class="ei">🔍</div><p>לא נמצאו</p></div>';
@@ -3643,8 +4080,180 @@ function addComment(){
 function quickComment(text){document.getElementById('commentText').value=text;addComment();}
 
 function exportData(){
+  haptic('light');
   const blob=new Blob([JSON.stringify({trips:S.trips,drivers:S.drivers,vehicles:S.vehicles},null,2)],{type:'application/json'});
   const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download=`navSystem_${new Date().toISOString().slice(0,10)}.json`;a.click();
+}
+
+// ══ EXPORT SYSTEM ══
+const DAYS_HE_EXP=['ראשון','שני','שלישי','רביעי','חמישי','שישי','שבת'];
+
+function openExportModal(target){
+  haptic('light');
+  document.getElementById('exportTarget').value=target;
+  const labels={trips:'נסיעות',drivers:'נהגים',vehicles:'רכבים'};
+  document.getElementById('exportModalTitle').textContent='ייצוא '+labels[target];
+  // Preview stats
+  let count=0,info='';
+  if(target==='trips'){
+    count=Object.keys(S.trips||{}).length;
+    const done=trips().filter(t=>t.status==='done').length;
+    info=`סה"כ ${count} נסיעות · ${done} בוצעו`;
+  } else if(target==='drivers'){
+    count=Object.keys(S.drivers||{}).length;
+    info=`סה"כ ${count} נהגים`;
+  } else {
+    count=Object.keys(S.vehicles||{}).length;
+    info=`סה"כ ${count} רכבים`;
+  }
+  document.getElementById('exportPreviewStats').innerHTML=
+    `<span style="font-weight:900;font-size:15px;">${info}</span>`;
+  openModal('exportModal');
+}
+
+function doExport(format){
+  haptic('medium');
+  const target=document.getElementById('exportTarget').value;
+  closeModal('exportModal');
+  const date=new Date().toISOString().slice(0,10);
+  if(format==='json'){
+    let data;
+    if(target==='trips') data=S.trips;
+    else if(target==='drivers') data=S.drivers;
+    else data=S.vehicles;
+    const blob=new Blob([JSON.stringify(data,null,2)],{type:'application/json'});
+    _download(URL.createObjectURL(blob),`${target}_${date}.json`);
+    return;
+  }
+  if(format==='excel') _exportExcel(target,date);
+  if(format==='pdf')   _exportPDF(target,date);
+}
+
+function _download(url,name){
+  const a=document.createElement('a');a.href=url;a.download=name;
+  document.body.appendChild(a);a.click();document.body.removeChild(a);
+  setTimeout(()=>URL.revokeObjectURL(url),5000);
+}
+
+function _exportExcel(target,date){
+  try{
+    if(!window.XLSX){ toast('ספריית Excel לא נטענה');return; }
+    const wb=XLSX.utils.book_new();
+    let ws,name;
+    if(target==='trips'){
+      name='נסיעות';
+      const rows=trips().map(t=>({
+        'תאריך':t.date||'',
+        'יום':t.date?DAYS_HE_EXP[new Date(t.date).getDay()]||'':'',
+        'שעה מתוכננת':t.time||'',
+        'שעה בפועל':t.actualTime||'',
+        'מוצא':t.from||'',
+        'יעד':t.to||'',
+        'עצירות':(t.stops||[]).join(' | '),
+        'נהג':gd(t.driverId)?.name||'',
+        'רכב':gv(t.vehicleId)?.name||'',
+        'נוסעים':t.passengers||'',
+        'סוג':t.type||'',
+        'סטטוס':SM[t.status||'pending']?.l||t.status||'',
+        'מפקד משלח':t.commander||'',
+        'שולח':t.sentBy||'',
+        'הערות':t.notes||'',
+      }));
+      ws=XLSX.utils.json_to_sheet(rows);
+      ws['!cols']=[{wch:12},{wch:8},{wch:12},{wch:12},{wch:20},{wch:20},{wch:20},{wch:16},{wch:14},{wch:8},{wch:10},{wch:10},{wch:14},{wch:14},{wch:20}];
+    } else if(target==='drivers'){
+      name='נהגים';
+      const rows=drivers().map(d=>({
+        'שם':d.name||'',
+        'טלפון':d.phone||'',
+        'מייל':d.email||'',
+        'תפקיד':d.jobTitle||'',
+        'מ. רשיון':d.license||'',
+        'ת.ז':d.idNumber||'',
+        'מס. אישי':d.personalNumber||'',
+      }));
+      ws=XLSX.utils.json_to_sheet(rows);
+      ws['!cols']=[{wch:18},{wch:14},{wch:24},{wch:16},{wch:14},{wch:12},{wch:12}];
+    } else {
+      name='רכבים';
+      const rows=vehicles().map(v=>({
+        'שם':v.name||'',
+        'לוחית':v.plate||'',
+        'סוג':v.type||'',
+        'מושבים':v.seats||'',
+        'ק"מ נוכחי':v.km||0,
+        'ק"מ לטיפול':v.nextServiceKm||'',
+        'סטטוס':v.status||'תקין',
+      }));
+      ws=XLSX.utils.json_to_sheet(rows);
+      ws['!cols']=[{wch:18},{wch:12},{wch:12},{wch:8},{wch:12},{wch:14},{wch:10}];
+    }
+    XLSX.utils.book_append_sheet(wb,ws,name);
+    const buf=XLSX.write(wb,{bookType:'xlsx',type:'array'});
+    const blob=new Blob([buf],{type:'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'});
+    _download(URL.createObjectURL(blob),`${target}_${date}.xlsx`);
+    toast('📊 Excel הורד בהצלחה ✓');
+    haptic('success');
+  }catch(e){toast('שגיאה ביצוא Excel: '+e.message);console.error(e);}
+}
+
+function _exportPDF(target,date){
+  try{
+    if(!window.jspdf?.jsPDF){ toast('ספריית PDF לא נטענה');return; }
+    const {jsPDF}=window.jspdf;
+    const doc=new jsPDF({orientation:'landscape',unit:'mm',format:'a4'});
+
+    // RTL support: mirror the page
+    doc.setLanguage('he');
+    const pageW=doc.internal.pageSize.getWidth();
+
+    // Header
+    const titles={trips:'דוח נסיעות',drivers:'דוח נהגים',vehicles:'דוח רכבים'};
+    doc.setFontSize(16);
+    doc.setTextColor(245,158,11);
+    doc.text(titles[target]||target, pageW/2, 14, {align:'center'});
+    doc.setFontSize(9);
+    doc.setTextColor(120,120,120);
+    doc.text(`תאריך הפקה: ${date}`, pageW/2, 20, {align:'center'});
+
+    let head=[],body=[];
+    if(target==='trips'){
+      head=[['תאריך','יום','שעה','מוצא','יעד','נהג','רכב','נוסעים','סטטוס','שולח']];
+      body=trips().map(t=>[
+        t.date||'',
+        t.date?DAYS_HE_EXP[new Date(t.date).getDay()]||'':'',
+        t.time||'',
+        t.from||'',
+        t.to||'',
+        gd(t.driverId)?.name||'',
+        gv(t.vehicleId)?.name||'',
+        t.passengers||'',
+        SM[t.status||'pending']?.l||'',
+        t.sentBy||'',
+      ]);
+    } else if(target==='drivers'){
+      head=[['שם','טלפון','מייל','תפקיד','רשיון']];
+      body=drivers().map(d=>[d.name||'',d.phone||'',d.email||'',d.jobTitle||'',d.license||'']);
+    } else {
+      head=[['שם','לוחית','סוג','מושבים','ק"מ','ק"מ לטיפול','סטטוס']];
+      body=vehicles().map(v=>[v.name||'',v.plate||'',v.type||'',v.seats||'',v.km||0,v.nextServiceKm||'',v.status||'תקין']);
+    }
+
+    doc.autoTable({
+      head,body,
+      startY:26,
+      theme:'grid',
+      styles:{font:'helvetica',fontSize:8,cellPadding:2,halign:'right',valign:'middle',overflow:'linebreak'},
+      headStyles:{fillColor:[30,40,70],textColor:[245,158,11],fontStyle:'bold',halign:'center'},
+      alternateRowStyles:{fillColor:[245,247,252]},
+      margin:{left:8,right:8},
+      tableWidth:'auto',
+    });
+
+    doc.save(`${target}_${date}.pdf`);
+    toast('📄 PDF הורד בהצלחה ✓');
+    haptic('success');
+  }catch(e){toast('שגיאה ביצוא PDF: '+e.message);console.error(e);}
 }
 
 
@@ -3877,10 +4486,14 @@ function showDeleteConfirm(icon, title, msg, onConfirm){
   document.getElementById('delTitle').textContent = title;
   document.getElementById('delMsg').textContent   = msg;
   const btn = document.getElementById('delConfirmBtn');
-  // remove old listener
   const fresh = btn.cloneNode(true);
   btn.parentNode.replaceChild(fresh, btn);
-  fresh.onclick = ()=>{ closeModal('deleteConfirmModal'); onConfirm(); };
+  fresh.onclick = ()=>{
+    haptic('error');   // haptic on delete confirm
+    closeModal('deleteConfirmModal');
+    onConfirm();
+  };
+  haptic('medium');    // haptic on delete prompt open
   openModal('deleteConfirmModal');
 }
 
@@ -5125,5 +5738,33 @@ function addDriverNodeToTree(){}
     </div>
   </div>
 </div>
+
+<!-- EXPORT MODAL -->
+<div class="modal-overlay" id="exportModal">
+  <div class="modal">
+    <div class="modal-handle"></div>
+    <div class="modal-head">
+      <span id="exportModalTitle">ייצוא נתונים</span>
+      <button class="modal-close" onclick="closeModal('exportModal')">✕</button>
+    </div>
+    <div class="modal-body">
+      <div id="exportPreviewStats" style="background:var(--ink3);border-radius:10px;padding:12px;margin-bottom:14px;font-size:13px;"></div>
+      <p style="font-size:12px;color:var(--txt3);margin-bottom:10px;">בחר פורמט ייצוא:</p>
+      <div style="display:flex;flex-direction:column;gap:8px;">
+        <button class="btn btn-amber btn-block" onclick="doExport('pdf')" style="font-size:14px;font-weight:900;">
+          📄 ייצוא PDF
+        </button>
+        <button class="btn" style="background:rgba(34,197,94,.15);color:var(--green);border:1px solid rgba(34,197,94,.3);border-radius:var(--r);padding:12px;font-size:14px;font-weight:900;cursor:pointer;width:100%;" onclick="doExport('excel')">
+          📊 ייצוא Excel
+        </button>
+        <button class="btn btn-ghost btn-block" onclick="doExport('json')" style="font-size:13px;">
+          📋 ייצוא JSON
+        </button>
+      </div>
+      <input type="hidden" id="exportTarget">
+    </div>
+  </div>
+</div>
+
 </body>
 </html>
