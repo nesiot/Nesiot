@@ -581,6 +581,15 @@ body.light-mode .swipe-inner .trip-block{ background: #d1dce8 !important; }
 }
 
 .pass-strength-bar{height:4px;border-radius:2px;margin-top:6px;transition:all .3s;background:var(--border2);}
+/* ── Toggle switch ── */
+.toggle-switch{position:relative;display:inline-block;width:44px;height:24px;flex-shrink:0;}
+.toggle-switch input{opacity:0;width:0;height:0;}
+.toggle-slider{position:absolute;cursor:pointer;top:0;left:0;right:0;bottom:0;background:var(--border2);border-radius:24px;transition:.25s;}
+.toggle-slider:before{position:absolute;content:'';height:18px;width:18px;left:3px;bottom:3px;background:#fff;border-radius:50%;transition:.25s;}
+.toggle-switch input:checked+.toggle-slider{background:var(--teal);}
+.toggle-switch input:checked+.toggle-slider:before{transform:translateX(20px);}
+@keyframes slideDownIn{from{opacity:0;transform:translateY(-20px);}to{opacity:1;transform:translateY(0);}}
+@keyframes slideUpOut{from{opacity:1;transform:translateY(0);}to{opacity:0;transform:translateY(-20px);}}
 #syncStatus{font-size:11px;font-weight:700;color:var(--txt3);}
 .empty{text-align:center;padding:40px 20px;color:var(--txt3);}
 .empty .ei{font-size:36px;margin-bottom:8px;}
@@ -625,7 +634,7 @@ body.light-mode .swipe-inner .trip-block{ background: #d1dce8 !important; }
       <button onclick="togglePassVis('loginPass',this)" style="position:absolute;left:12px;top:50%;transform:translateY(-50%);background:none;border:none;cursor:pointer;font-size:18px;color:var(--txt3);">👁</button>
     </div>
     <!-- אינדיקטור שגיאה -->
-    <div id="loginError" style="display:none;width:100%;max-width:320px;margin-top:10px;padding:10px 14px;background:rgba(239,68,68,.1);border:1px solid rgba(239,68,68,.35);border-radius:10px;display:none;align-items:center;gap:8px;">
+    <div id="loginError" style="display:none;width:100%;max-width:320px;margin-top:10px;padding:10px 14px;background:rgba(239,68,68,.1);border:1px solid rgba(239,68,68,.35);border-radius:10px;align-items:center;gap:8px;">
       <span style="font-size:18px;flex-shrink:0;">⚠️</span>
       <span id="loginErrorText" style="font-size:13px;font-weight:700;color:#ef4444;"></span>
     </div>
@@ -824,6 +833,9 @@ body.light-mode .swipe-inner .trip-block{ background: #d1dce8 !important; }
 
     <div class="sec-title">ייצוא</div>
     <div style="padding:0 12px 12px;"><button class="btn btn-ghost btn-block" onclick="exportData()">📤 ייצוא JSON</button></div>
+
+    <div class="sec-title">🔔 הגדרות התראות</div>
+    <div style="padding:0 12px 12px;"><div class="card" id="adminNotifCard"></div></div>
   </div>
   <!-- DRIVER PANEL -->
   <div id="driverSettingsPanel" style="display:none;">
@@ -832,6 +844,8 @@ body.light-mode .swipe-inner .trip-block{ background: #d1dce8 !important; }
       <div class="card" id="selfProfileCard"></div>
       <button class="btn btn-ghost btn-block" style="margin-top:8px;" onclick="openSelfEdit()">✏️ עריכת פרטים אישיים</button>
     </div>
+    <div class="sec-title">🔔 הגדרות התראות</div>
+    <div style="padding:0 12px 12px;"><div class="card" id="driverNotifCard"></div></div>
   </div>
   <!-- STAFF PANEL -->
   <div id="staffSettingsPanel" style="display:none;">
@@ -840,6 +854,8 @@ body.light-mode .swipe-inner .trip-block{ background: #d1dce8 !important; }
       <div class="card" id="staffProfileCard"></div>
       <button class="btn btn-ghost btn-block" style="margin-top:8px;" onclick="openSelfEdit()">✏️ עריכת פרטים אישיים</button>
     </div>
+    <div class="sec-title">🔔 הגדרות התראות</div>
+    <div style="padding:0 12px 12px;"><div class="card" id="staffNotifCard"></div></div>
   </div>
   <div style="height:80px;"></div>
 
@@ -1251,11 +1267,20 @@ body.light-mode .swipe-inner .trip-block{ background: #d1dce8 !important; }
 
 <!-- EmailJS for real OTP emails -->
 <script src="https://cdn.jsdelivr.net/npm/@emailjs/browser@4/dist/email.min.js" crossorigin="anonymous"></script>
-<!-- Firebase compat SDK — חובה: app תמיד ראשון -->
+<!-- Firebase compat SDK -->
 <script src="https://cdnjs.cloudflare.com/ajax/libs/firebase/9.23.0/firebase-app-compat.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/firebase/9.23.0/firebase-database-compat.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/firebase/9.23.0/firebase-storage-compat.min.js"></script>
 <script>
+// ── Global error boundary ──
+window.onerror = function(msg, src, line, col, err){
+  console.error('[AppError]', msg, src, line, col, err);
+  return false;
+};
+window.addEventListener('unhandledrejection', e=>{
+  console.error('[UnhandledPromise]', e.reason);
+});
+
 // ══════ EMAILJS CONFIG ══════
 // הגדר את הפרטים שלך מ-emailjs.com (חינמי עד 200 מיילים/חודש)
 const EJS = {
@@ -1269,6 +1294,7 @@ try { emailjs.init(EJS.publicKey); } catch(e) { console.warn('EmailJS לא נט�
 // לצורך demo: הקוד מוצג בהודעה כשאין SMS API
 
 // ══════ FIREBASE INIT ══════
+let db, r;
 firebase.initializeApp({
   apiKey: "AIzaSyD8LIZPg0IhqqS6kr92TuS1V9kW8ip6XBs",
   authDomain: "drivetime-21f48.firebaseapp.com",
@@ -1278,8 +1304,8 @@ firebase.initializeApp({
   messagingSenderId: "161065346656",
   appId: "1:161065346656:web:43b6480670ac6294ba0505"
 });
-const db = firebase.database();
-const r  = p => db.ref(p);
+db = firebase.database();
+r  = p => db.ref(p);
 
 // ══════ APP VERSION ══════
 const APP_VERSION = '33';
@@ -1637,6 +1663,9 @@ function finishLogin(){
   ub.style.display='none'; ub.classList.remove('show'); undoStack=[];
   document.getElementById('themeBtn').textContent=lightMode?'☀️':'🌙';
   goOnline(currentUser); startListeners(); startVersionListener(); publishVersion();
+  loadNotifSettings();
+  startNotifListener();
+  startTripReminders();
   // בדוק משתמשים זמניים שפג תוקפם
   if(currentUser.role==='admin') checkExpiredGuests();
   if(isGuest) toast(`ברוך הבא ${currentUser.name}! 👁️ צפייה בלבד`);
@@ -2394,8 +2423,14 @@ function setStatus(id,status){
   const trip=S.trips[id]; if(!trip)return;
   pushUndo('status_trip',{id,status:trip.status},'סטטוס שונה');
   const upd={status};
-  if(status==='moving') upd.actualDeparture=new Date().toISOString();
-  if(status==='done')   upd.actualArrival=new Date().toISOString();
+  if(status==='moving'){
+    upd.actualDeparture=new Date().toISOString();
+    // notify staff + admin that trip started
+    const payload={from:trip.from,to:trip.to,time:trip.time};
+    sendNotifToRole('staff','trip_started',payload);
+    sendNotifToRole('admin','trip_started',payload);
+  }
+  if(status==='done') upd.actualArrival=new Date().toISOString();
   r(`trips/${id}`).update(upd);
   toast(`${SM[status].e} ${SM[status].l}`);
 }
@@ -2449,10 +2484,205 @@ function approveProposal(id){
   const p=S.proposals[id]; if(!p)return;
   const tripId=uid();
   r(`trips/${tripId}`).set({id:tripId,from:p.from,to:p.to,stops:p.stops||[],time:p.time,date:p.date,passengers:p.passengers,type:p.type,notes:p.notes,status:'pending',comments:{},sentBy:p.sentBy,driverId:'',vehicleId:''})
-    .then(()=>{r(`proposals/${id}`).update({status:'approved',approvedTripId:tripId});toast('✅ נסיעה אושרה! ניתן לשבץ נהג ורכב');})
+    .then(()=>{
+      r(`proposals/${id}`).update({status:'approved',approvedTripId:tripId});
+      toast('✅ נסיעה אושרה! ניתן לשבץ נהג ורכב');
+      // notify submitter
+      if(p.sentById) sendInAppNotif(p.sentById,'trip_approved',{from:p.from,to:p.to,time:p.time});
+      // notify all staff
+      sendNotifToRole('staff','trip_authorized',{from:p.from,to:p.to,time:p.time});
+    })
     .catch(e=>toast('שגיאה: '+e.message));
 }
-function rejectProposal(id){r(`proposals/${id}`).update({status:'rejected'}).then(()=>toast('❌ נדחתה'));}
+function rejectProposal(id){
+  const p=S.proposals[id]; if(!p)return;
+  r(`proposals/${id}`).update({status:'rejected'}).then(()=>{
+    toast('❌ נדחתה');
+    // notify staff who submitted
+    if(p.sentById) sendInAppNotif(p.sentById,'trip_rejected',{from:p.from,to:p.to,time:p.time});
+  });
+}
+
+// ══════ PUSH / IN-APP NOTIFICATION SYSTEM ══════
+// Uses Firebase Realtime DB as notification bus (no FCM server needed)
+// Each notif: {id, userId, type, payload, read, ts}
+const NOTIF_TYPES={
+  trip_reminder:    {icon:'⏰', title:'תזכורת נסיעה'},
+  trip_started:     {icon:'🚗', title:'נסיעה התחילה'},
+  trip_approved:    {icon:'✅', title:'בקשת נסיעה אושרה'},
+  trip_rejected:    {icon:'❌', title:'בקשת נסיעה נדחתה'},
+  trip_authorized:  {icon:'🔓', title:'נסיעה מורשית'},
+};
+
+let _notifListener=null;
+let _notifSettings={};  // loaded from Firebase / localStorage
+
+function sendInAppNotif(userId, type, payload={}){
+  if(!userId||!type) return;
+  const id=uid();
+  r(`notifications/${userId}/${id}`).set({id,userId,type,payload,read:false,ts:Date.now()});
+}
+
+function sendNotifToRole(role, type, payload={}){
+  // send to all active users of given role
+  r('users').orderByChild('role').equalTo(role).once('value',snap=>{
+    const users=snap.val()||{};
+    Object.keys(users).forEach(uid=>sendInAppNotif(uid,type,payload));
+  });
+}
+
+function startNotifListener(){
+  if(!currentUser) return;
+  if(_notifListener) r(`notifications/${currentUser.id}`).off('child_added',_notifListener);
+  let initialized=false;
+  // mark existing as "skip" on first load
+  r(`notifications/${currentUser.id}`).once('value',()=>{ initialized=true; });
+  _notifListener=r(`notifications/${currentUser.id}`).on('child_added',snap=>{
+    if(!initialized) return;
+    const n=snap.val(); if(!n||n.read) return;
+    const settings=_notifSettings;
+    if(settings.muted) return;
+    const typeConf=NOTIF_TYPES[n.type]; if(!typeConf) return;
+    // check per-type setting
+    const typeKey='notif_'+n.type;
+    if(settings[typeKey]===false) return;
+    showPushBanner(typeConf.icon, typeConf.title, buildNotifBody(n));
+    // mark read
+    r(`notifications/${currentUser.id}/${n.id}`).update({read:true});
+    // native browser notification if permitted
+    if(typeof Notification !== 'undefined' && Notification.permission==='granted'){
+      try { new Notification(typeConf.title,{body:buildNotifBody(n),icon:'/favicon.ico'}); } catch(e){}
+    }
+  });
+}
+
+function buildNotifBody(n){
+  const p=n.payload||{};
+  switch(n.type){
+    case 'trip_reminder':   return `נסיעה ב-${p.time} מ-${p.from} ל-${p.to}`;
+    case 'trip_started':    return `נסיעה ל-${p.to} התחילה ב-${p.time}`;
+    case 'trip_approved':   return `נסיעתך ${p.from}→${p.to} ב-${p.time} אושרה`;
+    case 'trip_rejected':   return `נסיעתך ${p.from}→${p.to} ב-${p.time} נדחתה`;
+    case 'trip_authorized': return `נסיעה מורשית: ${p.from}→${p.to} ב-${p.time}`;
+    default: return '';
+  }
+}
+
+// In-app banner (non-intrusive toast-style)
+function showPushBanner(icon, title, body){
+  const existing=document.getElementById('pushBanner');
+  if(existing) existing.remove();
+  const el=document.createElement('div');
+  el.id='pushBanner';
+  el.style.cssText=`position:fixed;top:16px;right:0;left:0;margin:0 12px;z-index:9999;
+    background:linear-gradient(135deg,#1e3a5f,#0f2027);
+    border:1px solid rgba(59,130,246,.35);border-radius:14px;
+    padding:12px 14px;display:flex;align-items:center;gap:12px;
+    box-shadow:0 8px 32px rgba(0,0,0,.4);
+    animation:slideDownIn .3s cubic-bezier(.34,1.56,.64,1);`;
+  el.innerHTML=`
+    <div style="font-size:24px;flex-shrink:0;">${icon}</div>
+    <div style="flex:1;min-width:0;">
+      <div style="font-size:13px;font-weight:900;color:#e2e8f0;">${title}</div>
+      <div style="font-size:11px;color:#94a3b8;margin-top:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${body}</div>
+    </div>
+    <button onclick="this.parentElement.remove()" style="background:none;border:none;color:#64748b;font-size:18px;cursor:pointer;flex-shrink:0;padding:0 4px;">×</button>`;
+  document.body.appendChild(el);
+  setTimeout(()=>{ if(el.parentNode) el.style.animation='slideUpOut .3s ease forwards'; setTimeout(()=>el.remove(),300); }, 4500);
+}
+
+// ── Notification Settings ──
+function loadNotifSettings(){
+  if(!currentUser) return;
+  const raw=localStorage.getItem(`notifSettings_${currentUser.id}`);
+  _notifSettings=raw?JSON.parse(raw):{muted:false,notif_trip_reminder:true,notif_trip_started:true,notif_trip_approved:true,notif_trip_rejected:true,notif_trip_authorized:true};
+}
+function saveNotifSetting(key,val){
+  _notifSettings[key]=val;
+  localStorage.setItem(`notifSettings_${currentUser.id}`,JSON.stringify(_notifSettings));
+}
+
+function renderNotifSettings(cardId){
+  const card=document.getElementById(cardId); if(!card) return;
+  if(!Object.keys(_notifSettings).length) loadNotifSettings();
+  const s=_notifSettings;
+  const role=currentUser?.role||'driver';
+  const typeRows=[
+    role!=='guest' ? {key:'notif_trip_reminder',  label:'⏰ תזכורת לפני נסיעה'} : null,
+    (role==='admin'||role==='staff') ? {key:'notif_trip_started',   label:'🚗 התחלת נסיעה'} : null,
+    (role==='staff'||role==='driver') ? {key:'notif_trip_approved',  label:'✅ אישור בקשה'} : null,
+    (role==='staff'||role==='driver') ? {key:'notif_trip_rejected',  label:'❌ דחיית בקשה'} : null,
+    role==='staff' ? {key:'notif_trip_authorized',label:'🔓 נסיעה מורשית'} : null,
+    role==='admin' ? {key:'notif_trip_started',   label:'🚗 התחלת נסיעה'} : null,
+    role==='admin' ? {key:'notif_trip_approved',  label:'✅ בקשות שהוגשו'} : null,
+  ].filter(Boolean);
+
+  // iOS Safari doesn't support Notification API
+  const notifSupported = (typeof Notification !== 'undefined');
+  const notifStatus = notifSupported ? (Notification.permission==='granted'?'✅ מופעל':'🔔 הפעל') : '🚫 לא נתמך ב-Safari';
+
+  card.innerHTML=`
+    <div class="list-item" style="justify-content:space-between;padding:12px 14px;">
+      <div style="font-weight:800;font-size:13px;">🔕 השתקת כל ההתראות</div>
+      <label class="toggle-switch">
+        <input type="checkbox" ${s.muted?'checked':''} onchange="saveNotifSetting('muted',this.checked);renderNotifSettings('${cardId}')">
+        <span class="toggle-slider"></span>
+      </label>
+    </div>
+    ${s.muted
+      ? `<div style="padding:8px 14px 10px;font-size:11px;color:var(--txt3);text-align:center;">כל ההתראות מושתקות</div>`
+      : `<div style="border-top:1px solid var(--border);">
+          ${typeRows.map(t=>`
+            <div class="list-item" style="justify-content:space-between;padding:10px 14px;">
+              <div style="font-size:13px;">${t.label}</div>
+              <label class="toggle-switch">
+                <input type="checkbox" ${s[t.key]!==false?'checked':''} onchange="saveNotifSetting('${t.key}',this.checked)">
+                <span class="toggle-slider"></span>
+              </label>
+            </div>`).join('')}
+          <div class="list-item" style="padding:10px 14px;justify-content:space-between;">
+            <div style="font-size:12px;color:var(--txt2);">התראות מערכת (דפדפן)</div>
+            <button class="btn btn-ghost btn-sm" onclick="requestNotifPermission()" ${!notifSupported?'disabled':''} style="${!notifSupported?'opacity:.4;':''}">
+              ${notifStatus}
+            </button>
+          </div>
+        </div>`
+    }`;
+}
+
+function requestNotifPermission(){
+  if(typeof Notification === 'undefined'){toast('התראות דפדפן לא נתמכות ב-Safari iOS');return;}
+  if(!('Notification' in window)){toast('הדפדפן לא תומך בהתראות');return;}
+  Notification.requestPermission().then(p=>{
+    if(p==='granted'){toast('✅ התראות מופעלות!');renderNotifSettings('adminNotifCard');renderNotifSettings('driverNotifCard');renderNotifSettings('staffNotifCard');}
+    else toast('התראות נחסמו בהגדרות הדפדפן');
+  });
+}
+
+// ── Trip reminder scheduler ──
+let _reminderInterval=null;
+function startTripReminders(){
+  if(_reminderInterval) clearInterval(_reminderInterval);
+  _reminderInterval=setInterval(()=>{
+    if(!currentUser||_notifSettings.muted) return;
+    if(_notifSettings.notif_trip_reminder===false) return;
+    const now=new Date();
+    const todayStr=ds(now);
+    const hh=now.getHours(), mm=now.getMinutes();
+    trips().filter(t=>t.date===todayStr&&t.status==='pending'&&t.driverId).forEach(t=>{
+      const [th,tm]=(t.time||'00:00').split(':').map(Number);
+      const diffMin=(th*60+tm)-(hh*60+mm);
+      // remind 30 min before
+      if(diffMin>=28&&diffMin<=32){
+        const driver=Object.values(S.drivers||{}).find(d=>d.id===t.driverId);
+        const isMyTrip=currentUser.role==='driver'&&(driver?.linkedUserId===currentUser.id||driver?.name===currentUser.name);
+        if(isMyTrip) showPushBanner('⏰','תזכורת נסיעה',`עוד 30 דק׳: ${t.from} → ${t.to}`);
+      }
+    });
+  },60000); // check every minute
+}
+
+
 
 // ══════ MOVE ══════
 function openMoveModal(id){
@@ -2622,6 +2852,7 @@ function renderSettings(){
   document.getElementById('adminSettingsPanel').style.display=_isAdmin?'block':'none';
   document.getElementById('driverSettingsPanel').style.display=(!_isAdmin&&!_isStaff)?'block':'none';
   document.getElementById('staffSettingsPanel').style.display=_isStaff?'block':'none';
+  if(_isAdmin){ loadNotifSettings(); requestAnimationFrame(()=>renderNotifSettings('adminNotifCard')); }
   if(_isStaff){
     const card=document.getElementById('staffProfileCard');
     if(card) card.innerHTML=`<div class="card-body" style="display:flex;align-items:center;gap:12px;">
@@ -2632,6 +2863,7 @@ function renderSettings(){
       </div>
       <button class="btn btn-ghost btn-sm" style="margin-right:auto;" onclick="openSelfEdit()">✏️</button>
     </div>`;
+    loadNotifSettings(); requestAnimationFrame(()=>renderNotifSettings('staffNotifCard'));
     return;
   }
   if(!_isAdmin){
@@ -2651,6 +2883,7 @@ function renderSettings(){
       ${currentUser.personalNumber?`<div class="sensitive-field-row"><span class="sensitive-field-label">מס' אישי</span><span class="sensitive-field-val">${currentUser.personalNumber}</span><button class="copy-btn" onclick="navigator.clipboard.writeText('${currentUser.personalNumber}');toast('הועתק ✓')">העתק</button></div>`:''}
     </div>`:''}
     `;
+    loadNotifSettings(); requestAnimationFrame(()=>renderNotifSettings('driverNotifCard'));
     return;
   }
   // ── drivers ──
@@ -2739,16 +2972,26 @@ function renderSettings(){
       // Guest users section
       const gc=document.getElementById('guestsCard');
       if(gc){
+        const platoons=Object.values(S.hierarchy||{});
         gc.innerHTML=guestUsers.length?guestUsers.map(u=>{
           const expired=u.guestExpiry&&Date.now()>u.guestExpiry;
           const expText=u.guestExpiry?`עד ${new Date(u.guestExpiry).toLocaleDateString('he-IL')}`:'ללא הגבלה';
-          return`<div class="list-item">
-            <div style="width:36px;height:36px;border-radius:10px;background:rgba(168,85,247,.15);display:flex;align-items:center;justify-content:center;font-size:18px;flex-shrink:0;">👁️</div>
-            <div class="li-body">
-              <strong>${u.name} ${expired?'<span style="color:var(--red);font-size:10px;">פג תוקף</span>':''}</strong>
-              <small>${expText} · צפייה בלבד</small>
+          const platoonName=u.platoonId&&S.hierarchy[u.platoonId]?S.hierarchy[u.platoonId].name:'—';
+          const platoonOptions=`<option value="">— ללא שיוך —</option>`
+            +platoons.map(p=>`<option value="${p.id}" ${u.platoonId===p.id?'selected':''}>${p.name}</option>`).join('');
+          return`<div class="list-item" style="flex-wrap:wrap;gap:6px;padding:10px 12px;">
+            <div style="display:flex;align-items:center;gap:8px;flex:1;min-width:180px;">
+              <div style="width:36px;height:36px;border-radius:10px;background:rgba(168,85,247,.15);display:flex;align-items:center;justify-content:center;font-size:18px;flex-shrink:0;">👁️</div>
+              <div class="li-body">
+                <strong>${u.name} ${expired?'<span style="color:var(--red);font-size:10px;">פג תוקף</span>':''}</strong>
+                <small>${expText} · צפייה בלבד · פלגה: ${platoonName}</small>
+              </div>
             </div>
-            <button class="btn btn-danger btn-sm" onclick="confirmDeleteGuest('${u.id}')">🗑️</button>
+            <div style="display:flex;gap:6px;align-items:center;width:100%;padding-top:4px;border-top:1px solid var(--border);">
+              <select style="flex:1;padding:6px 8px;border-radius:8px;background:var(--ink3);border:1px solid var(--border2);color:var(--txt);font-size:12px;outline:none;"
+                onchange="assignGuestPlatoon('${u.id}',this.value)">${platoonOptions}</select>
+              <button class="btn btn-danger btn-sm" onclick="confirmDeleteGuest('${u.id}')">🗑️</button>
+            </div>
           </div>`;}).join(''):'<div class="empty" style="padding:12px;"><p>אין משתמשים זמניים</p></div>';
         // הצג ארכיון
         r('guestArchive').once('value').then(snap=>{
@@ -2756,15 +2999,30 @@ function renderSettings(){
           if(!archived.length) return;
           const gcEl=document.getElementById('guestsCard'); if(!gcEl) return;
           gcEl.innerHTML+='<div style="padding:8px 12px;font-size:10px;font-weight:800;color:var(--txt3);letter-spacing:1px;border-top:1px solid var(--border);">📁 ארכיון (פג תוקף)</div>'
-            +archived.map(u=>`<div class="list-item">
-              <div style="width:36px;height:36px;border-radius:10px;background:rgba(100,100,100,.1);display:flex;align-items:center;justify-content:center;font-size:16px;flex-shrink:0;">🗃️</div>
-              <div class="li-body"><strong style="color:var(--txt2);">${u.name}</strong><small>הוסר ${new Date(u.archivedAt).toLocaleDateString('he-IL')}</small></div>
-              <button class="btn btn-ghost btn-sm" onclick="openQuickAddGuest('${u.id}')">⚡ הוסף מחדש</button>
+            +archived.map(u=>`<div class="list-item" style="flex-wrap:wrap;gap:6px;padding:10px 12px;">
+              <div style="display:flex;align-items:center;gap:8px;flex:1;min-width:160px;">
+                <div style="width:36px;height:36px;border-radius:10px;background:rgba(100,100,100,.1);display:flex;align-items:center;justify-content:center;font-size:16px;flex-shrink:0;">🗃️</div>
+                <div class="li-body">
+                  <strong style="color:var(--txt2);">${u.name}</strong>
+                  <small>הוסר ${new Date(u.archivedAt).toLocaleDateString('he-IL')}</small>
+                </div>
+              </div>
+              <div style="display:flex;gap:6px;width:100%;padding-top:4px;border-top:1px solid var(--border);">
+                <button class="btn btn-ghost btn-sm" style="flex:1;" onclick="openQuickAddGuest('${u.id}')">⚡ הוסף מחדש</button>
+                <button class="btn btn-ghost btn-sm" style="flex:1;" onclick="openEditArchivedGuest('${u.id}')">✏️ ערוך</button>
+                <button class="btn btn-danger btn-sm" onclick="confirmDeleteArchivedGuest('${u.id}')">🗑️</button>
+              </div>
             </div>`).join('');
         });
       }
     }
   }).catch(e=>{if(uc)uc.innerHTML=`<div class="empty"><p>שגיאה: ${e.message}</p></div>`;});
+}
+
+function assignGuestPlatoon(userId, platoonId){
+  r(`users/${userId}`).update({platoonId:platoonId||null})
+    .then(()=>{toast(platoonId?'✅ שויך לפלגה':'✓ שיוך הוסר');setTimeout(renderSettings,400);})
+    .catch(e=>toast('שגיאה: '+e.message));
 }
 
 // ══════ DELETE WITH CONFIRM ══════
@@ -3737,6 +3995,26 @@ function confirmDeleteGuest(id){
   });
 }
 
+function confirmDeleteArchivedGuest(archivedId){
+  showDeleteConfirm('🗃️','למחוק מהארכיון?','פעולה זו אינה הפיכה',()=>{
+    r(`guestArchive/${archivedId}`).remove()
+      .then(()=>{toast('✓ נמחק מהארכיון');setTimeout(renderSettings,400);})
+      .catch(e=>toast('שגיאה: '+e.message));
+  });
+}
+
+function openEditArchivedGuest(archivedId){
+  r(`guestArchive/${archivedId}`).once('value').then(snap=>{
+    const u=snap.val(); if(!u){toast('לא נמצא');return;}
+    const newName=prompt('שם המשתמש:',u.name||'');
+    if(newName===null) return; // cancelled
+    if(!newName.trim()){toast('שם לא יכול להיות ריק');return;}
+    r(`guestArchive/${archivedId}`).update({name:newName.trim()})
+      .then(()=>{toast('✓ עודכן');setTimeout(renderSettings,400);})
+      .catch(e=>toast('שגיאה: '+e.message));
+  });
+}
+
 // ══════════════════════════════════════════════════════
 // HIERARCHY SYSTEM v3 — Platoons + User Tree
 // ══════════════════════════════════════════════════════
@@ -3939,7 +4217,7 @@ function renderPlatoonList(){
       </div>
       ${(()=>{
         // Show staff members associated with this platoon (not in tree)
-        const staffMembers=_hAllUsers.filter(u=>u.role==='staff'&&u.platoonId===t.id);
+        const staffMembers=_hAllUsersWithGuests.filter(u=>(u.role==='staff'||u.isGuest)&&u.platoonId===t.id);
         if(!staffMembers.length) return '';
         return `<div style="padding:4px 12px 6px;display:flex;flex-wrap:wrap;gap:4px;">
           ${staffMembers.map(u=>`<span style="display:inline-flex;align-items:center;gap:4px;padding:2px 8px;border-radius:999px;background:rgba(245,158,11,.1);border:1px solid rgba(245,158,11,.25);font-size:11px;font-weight:700;color:var(--amber);">🎖️ ${u.name}</span>`).join('')}
@@ -4010,8 +4288,8 @@ function renderHierarchyTree(){
     html=rootNodes.map(n=>renderHNode(n,_activeTreeId,visibleNodeIds,canEdit,0)).join('');
   }
 
-  // ── סגל פיקודי משויך לפלגה ──
-  const platoonStaff=_hAllUsers.filter(u=>u.role==='staff'&&u.platoonId===_activeTreeId);
+  // ── סגל פיקודי ומשתמשים זמניים משויכים לפלגה ──
+  const platoonStaff=_hAllUsersWithGuests.filter(u=>(u.role==='staff'&&u.platoonId===_activeTreeId)||(u.isGuest&&u.platoonId===_activeTreeId));
   if(platoonStaff.length){
     html+=`<div style="margin-top:14px;padding-bottom:4px;">
       <div style="font-size:10px;font-weight:800;color:var(--amber);letter-spacing:1px;margin-bottom:6px;">🎖️ סגל פיקודי (${platoonStaff.length})</div>
@@ -4354,10 +4632,12 @@ function _loadUsersForSearch(){
 }
 
 // טעינה גלובלית בעת startListeners — כך _getUserById עובדת תמיד
+let _hAllUsersWithGuests=[];
 function _refreshUsersCache(){
   r('users').on('value', snap=>{
-    _hAllUsers = Object.values(snap.val()||{})
-      .filter(u => u.status !== 'pending' && !u.isGuest && u.name);
+    const all=Object.values(snap.val()||{});
+    _hAllUsers = all.filter(u => u.status !== 'pending' && !u.isGuest && u.name);
+    _hAllUsersWithGuests = all.filter(u => u.status !== 'pending' && u.name);
   });
 }
 
