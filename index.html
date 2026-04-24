@@ -9,32 +9,6 @@
 <link rel="icon" href="app-icon-1024.png">
 <link rel="manifest" href="manifest.json">
 <link href="https://fonts.googleapis.com/css2?family=Heebo:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
-<script>
-// ── Files app detection: redirect to Safari ──
-(function(){
-  try {
-    var req = new XMLHttpRequest();
-    req.open('GET', 'https://www.google.com', false);
-    req.send();
-  } catch(e) {
-    // Network blocked — likely Files app HTML viewer
-    document.addEventListener('DOMContentLoaded', function(){
-      document.body.innerHTML = '<div style="display:flex;flex-direction:column;align-items:center;justify-content:center;min-height:100vh;background:#0a0f1a;color:#e2eaf7;font-family:-apple-system,sans-serif;text-align:center;padding:32px;gap:20px;direction:rtl;">'
-        + '<div style="font-size:56px;">🌐</div>'
-        + '<div style="font-size:22px;font-weight:900;">יש לפתוח ב-Safari</div>'
-        + '<div style="font-size:15px;color:#7a98c0;line-height:1.6;">האפליקציה דורשת חיבור לאינטרנט.<br>ה-Files app חוסם גישה לרשת.</div>'
-        + '<div style="background:#1c2840;border-radius:16px;padding:20px 24px;margin-top:8px;width:100%;max-width:320px;">'
-        + '<div style="font-size:13px;font-weight:800;color:#f59e0b;margin-bottom:12px;">איך לפתוח ב-Safari:</div>'
-        + '<div style="font-size:13px;color:#7a98c0;text-align:right;line-height:2;">'
-        + '1. לחץ על <b style="color:#e2eaf7;">···</b> בפינה הימנית העליונה<br>'
-        + '2. בחר <b style="color:#e2eaf7;">Open with Safari</b>'
-        + '</div></div>'
-        + '<button onclick="window.location.reload()" style="margin-top:8px;padding:14px 32px;background:#f59e0b;border:none;border-radius:14px;font-size:16px;font-weight:800;cursor:pointer;color:#000;">🔄 נסה שוב</button>'
-        + '</div>';
-    });
-  }
-})();
-</script>
 <style>
 :root {
   --ink:#0a0f1a;--ink2:#111827;--ink3:#1c2840;--panel:#162032;
@@ -1451,6 +1425,14 @@ firebase.initializeApp({
 db = firebase.database();
 r  = p => db.ref(p);
 
+// Keep critical paths synced even when app goes back online
+function _enableOfflineSync(){
+  ['trips','drivers','vehicles','proposals','users','tags','hierarchy2'].forEach(path=>{
+    db.ref(path).keepSynced(true);
+  });
+}
+_enableOfflineSync();
+
 // ══════ APP VERSION ══════
 const APP_VERSION = '33';
 const APP_BUILD   = '2026-04-24';
@@ -1609,9 +1591,9 @@ async function doPasswordLogin(){
   const btn=document.querySelector('#loginMain .login-btn');
   if(btn){ btn.textContent='מתחבר...'; btn.disabled=true; }
 
-  r('users').once('value').then(async snap=>{
+  // Helper: attempt login with a users snapshot (online or cached)
+  async function attemptWithUsers(users){
     if(btn){ btn.textContent='כניסה →'; btn.disabled=false; }
-    const users=Object.values(snap.val()||{});
     const normIdent=normalizePhone(ident);
     const found=users.find(u=>
       u.status!=='pending' && (
@@ -1638,11 +1620,35 @@ async function doPasswordLogin(){
       localStorage.removeItem('rememberMe');
       localStorage.removeItem('savedUser');
     }
+    // Cache users list for offline login next time
+    try { localStorage.setItem('cachedUsers', JSON.stringify(users)); } catch(e){}
     clearLoginError();
     finishLogin();
-  }).catch(()=>{
+  }
+
+  // Try Firebase (works from IndexedDB cache even offline after first load)
+  const timer = setTimeout(async ()=>{
+    // Truly offline and no cache — try localStorage cached users
     if(btn){ btn.textContent='כניסה →'; btn.disabled=false; }
-    showLoginError('שגיאת חיבור – נסה שוב');
+    try {
+      const cached = JSON.parse(localStorage.getItem('cachedUsers')||'[]');
+      if(cached.length){ await attemptWithUsers(cached); }
+      else { showLoginError('אין חיבור לאינטרנט ואין מידע שמור ❌'); }
+    } catch(e){ showLoginError('שגיאת חיבור – נסה שוב'); }
+  }, 4000);
+
+  r('users').once('value').then(async snap=>{
+    clearTimeout(timer);
+    const users=Object.values(snap.val()||{});
+    await attemptWithUsers(users);
+  }).catch(async ()=>{
+    clearTimeout(timer);
+    if(btn){ btn.textContent='כניסה →'; btn.disabled=false; }
+    try {
+      const cached = JSON.parse(localStorage.getItem('cachedUsers')||'[]');
+      if(cached.length){ await attemptWithUsers(cached); }
+      else { showLoginError('שגיאת חיבור – נסה שוב'); }
+    } catch(e){ showLoginError('שגיאת חיבור – נסה שוב'); }
   });
 }
 
@@ -1838,6 +1844,16 @@ function startListeners(){
     const c=snap.val();
     document.getElementById('liveDot').className='live-dot'+(c?' connected':'');
     document.getElementById('syncStatus').textContent=c?'🟢':'🔴';
+    // Offline banner
+    let ob=document.getElementById('offlineBanner');
+    if(!ob){
+      ob=document.createElement('div');
+      ob.id='offlineBanner';
+      ob.style.cssText='position:fixed;bottom:calc(var(--tab-h) + var(--safe-b) + 8px);right:0;left:0;margin:0 12px;z-index:8888;background:linear-gradient(135deg,#1a0d40,#2d1060);border:1px solid rgba(168,85,247,.4);border-radius:12px;padding:10px 14px;display:flex;align-items:center;gap:10px;box-shadow:0 4px 20px rgba(0,0,0,.4);transition:opacity .3s,transform .3s;';
+      ob.innerHTML='<span style="font-size:18px;">📵</span><div style="flex:1;"><div style="font-size:12px;font-weight:800;color:#e2e8f0;">מצב לא מקוון</div><div style="font-size:11px;color:#94a3b8;">מוצגים נתונים שמורים · שינויים יסונכרנו בחיבור</div></div>';
+      document.body.appendChild(ob);
+    }
+    ob.style.display=c?'none':'flex';
   });
   r('trips').on('value',   snap=>{S.trips   =snap.val()||{}; scheduleRender();});
   r('drivers').on('value', snap=>{S.drivers =snap.val()||{}; scheduleRender();});
@@ -1851,34 +1867,49 @@ function startListeners(){
     refreshCommanderDropdown();
   });
   startHierarchyListener();
-  _refreshUsersCache(); // ← מבטיח ש-_hAllUsers תמיד עדכני
+  _refreshUsersCache();
 }
 
 // ══════ AUTO-LOGIN (Remember Me) ══════
 // נקרא פעם אחת בטעינת הדף – לפני הצגת מסך ההתחברות
 function tryAutoLogin(){
   const remember = localStorage.getItem('rememberMe');
-  if(remember !== 'true') return; // לא סומן "זכור אותי"
+  if(remember !== 'true') return;
   const raw = localStorage.getItem('savedUser');
   if(!raw) return;
   try {
     const saved = JSON.parse(raw);
     if(!saved||!saved.id||!saved.name) return;
-    // אמת מול Firebase שהמשתמש עדיין פעיל (לא נמחק/הושהה)
+
+    // Try Firebase first (works online + from cache when offline)
+    const timeout = setTimeout(()=>{
+      // Firebase took too long (truly offline, no cache yet) — login from localStorage
+      if(!currentUser){
+        currentUser = saved;
+        finishLogin();
+      }
+    }, 3000);
+
     r(`users/${saved.id}`).once('value').then(snap=>{
+      clearTimeout(timeout);
+      if(currentUser) return; // already logged in via timeout
       const u = snap.val();
       if(!u || u.status==='pending'){ doLogout(); return; }
-      // בדיקת תוקף guest
       if(u.isGuest && u.guestExpiry && Date.now()>u.guestExpiry){ doLogout(); return; }
-      // עדכן currentUser מהנתונים העדכניים ב-Firebase
       currentUser={id:u.id,name:u.name,role:u.role,
         phone:u.phone||'',email:u.email||'',
         alsoDriver:!!u.alsoDriver,avatar:u.avatar||'👤',
         isGuest:!!u.isGuest};
-      // שמור מחדש (ייתכן שהנתונים השתנו)
       localStorage.setItem('savedUser', JSON.stringify(currentUser));
       finishLogin();
-    }).catch(()=>{/* אין חיבור – השאר מסך כניסה */});
+    }).catch(()=>{
+      clearTimeout(timeout);
+      // Firebase error — login from cache
+      if(!currentUser){
+        currentUser = saved;
+        finishLogin();
+      }
+    });
   } catch(e){ localStorage.removeItem('savedUser'); localStorage.removeItem('rememberMe'); }
 }
 function goOnline(user){
