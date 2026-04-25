@@ -65,6 +65,35 @@ body.light-mode .login-input{background:var(--ink2);color:var(--txt);}
 .sensitive-field-label{font-size:10px;font-weight:800;color:var(--txt3);letter-spacing:.8px;text-transform:uppercase;width:60px;flex-shrink:0;}
 .sensitive-field-val{flex:1;font-size:13px;font-weight:800;color:var(--txt);}
 
+/* ── DATA ANALYTICS PAGE ── */
+.da-filter-bar{display:flex;gap:6px;padding:10px 12px 4px;overflow-x:auto;scrollbar-width:none;flex-wrap:nowrap;}
+.da-filter-bar::-webkit-scrollbar{display:none;}
+.da-filter-sel{padding:7px 11px;border-radius:8px;background:var(--ink3);border:1px solid var(--border2);color:var(--txt);font-size:12px;outline:none;flex-shrink:0;max-width:130px;}
+.da-kpi-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px;padding:8px 12px;}
+.da-kpi{background:var(--panel);border:1px solid var(--border);border-radius:12px;padding:12px 14px;}
+.da-kpi-val{font-size:26px;font-weight:900;line-height:1;}
+.da-kpi-lbl{font-size:10px;color:var(--txt3);font-weight:700;margin-top:3px;letter-spacing:.4px;}
+.da-kpi-sub{font-size:11px;color:var(--txt2);margin-top:4px;}
+.da-kpi.amber .da-kpi-val{color:var(--amber);}
+.da-kpi.green  .da-kpi-val{color:var(--green);}
+.da-kpi.red    .da-kpi-val{color:var(--red);}
+.da-kpi.blue   .da-kpi-val{color:var(--blue2);}
+.da-kpi.purple .da-kpi-val{color:#a855f7;}
+.da-chart-card{margin:0 12px 10px;background:var(--panel);border:1px solid var(--border);border-radius:14px;overflow:hidden;}
+.da-chart-head{padding:12px 14px 6px;display:flex;align-items:center;justify-content:space-between;}
+.da-chart-title{font-size:13px;font-weight:800;}
+.da-chart-body{padding:8px 12px 14px;position:relative;}
+.da-rank-row{display:flex;align-items:center;gap:10px;padding:8px 14px;border-bottom:1px solid var(--border);}
+.da-rank-row:last-child{border-bottom:none;}
+.da-rank-num{width:20px;font-size:11px;font-weight:900;color:var(--txt3);text-align:center;}
+.da-rank-name{flex:1;font-size:13px;font-weight:700;}
+.da-rank-val{font-size:12px;font-weight:800;color:var(--amber);}
+.da-rank-bar-wrap{width:70px;height:6px;background:var(--border2);border-radius:3px;overflow:hidden;}
+.da-rank-bar{height:100%;border-radius:3px;background:var(--amber);}
+.da-section-title{font-size:10px;font-weight:800;color:var(--txt3);letter-spacing:1px;padding:12px 14px 4px;text-transform:uppercase;}
+.da-period-chip{padding:5px 10px;border-radius:7px;font-size:11px;font-weight:800;border:1px solid var(--border2);background:var(--ink3);color:var(--txt2);cursor:pointer;}
+.da-period-chip.active{background:var(--amber);color:#000;border-color:var(--amber);}
+
 /* ── RECURRING TRIPS ── */
 .recur-badge{display:inline-flex;align-items:center;gap:3px;padding:2px 7px;border-radius:999px;font-size:10px;font-weight:800;background:rgba(168,85,247,.13);color:var(--purple);border:1px solid rgba(168,85,247,.28);margin-right:4px;}
 .recur-section{background:rgba(168,85,247,.06);border:1px solid rgba(168,85,247,.18);border-radius:10px;padding:12px;margin-top:10px;}
@@ -625,6 +654,7 @@ body.light-mode .swipe-inner .trip-block{ background: #d1dce8 !important; }
 .version-num{font-size:16px;font-weight:900;color:var(--amber);}
 .version-sub{font-size:11px;font-weight:800;color:var(--txt2);}
 </style>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
 </head>
 <body>
 
@@ -834,6 +864,85 @@ body.light-mode .swipe-inner .trip-block{ background: #d1dce8 !important; }
   <div style="height:80px;"></div>
 </div>
 
+<!-- ══ DATA PAGE ══ -->
+<div class="page" id="page-data">
+  <!-- Period selector -->
+  <div style="padding:10px 12px 0;display:flex;align-items:center;justify-content:space-between;">
+    <div style="display:flex;gap:6px;">
+      <button class="da-period-chip active" id="daPeriod-month" onclick="setDaPeriod('month',this)">חודש</button>
+      <button class="da-period-chip" id="daPeriod-week" onclick="setDaPeriod('week',this)">שבוע</button>
+      <button class="da-period-chip" id="daPeriod-all" onclick="setDaPeriod('all',this)">הכל</button>
+    </div>
+    <button class="btn btn-ghost btn-sm" onclick="toggleDaFilters()" id="daFilterToggle">⚙️ סינון</button>
+  </div>
+  <!-- Filters -->
+  <div id="daFiltersPanel" style="display:none;padding:8px 12px;background:var(--panel);border-bottom:1px solid var(--border);margin-top:6px;">
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;">
+      <select class="da-filter-sel" id="daFltDriver" onchange="renderDataPage()" style="max-width:100%;">
+        <option value="">כל הנהגים</option>
+      </select>
+      <select class="da-filter-sel" id="daFltVehicle" onchange="renderDataPage()" style="max-width:100%;">
+        <option value="">כל הרכבים</option>
+      </select>
+      <select class="da-filter-sel" id="daFltPlatoon" onchange="renderDataPage()" style="max-width:100%;">
+        <option value="">כל הפלגות</option>
+      </select>
+      <select class="da-filter-sel" id="daFltStatus" onchange="renderDataPage()" style="max-width:100%;">
+        <option value="">כל הסטטוסים</option>
+        <option value="pending">ממתין</option>
+        <option value="moving">בדרך</option>
+        <option value="done">בוצע</option>
+        <option value="delayed">עיכוב</option>
+        <option value="cancelled">בוטל</option>
+      </select>
+    </div>
+    <div style="display:flex;gap:6px;margin-top:6px;">
+      <input type="date" class="da-filter-sel" id="daFltFrom" onchange="renderDataPage()" style="max-width:100%;flex:1;">
+      <input type="date" class="da-filter-sel" id="daFltTo" onchange="renderDataPage()" style="max-width:100%;flex:1;">
+    </div>
+    <button class="btn btn-ghost btn-sm" style="margin-top:6px;width:100%;" onclick="clearDaFilters()">נקה סינון</button>
+  </div>
+
+  <!-- KPIs -->
+  <div class="da-kpi-grid" id="daKpiGrid"></div>
+
+  <!-- Charts -->
+  <div class="da-chart-card">
+    <div class="da-chart-head"><span class="da-chart-title">📅 פעילות יומית</span></div>
+    <div class="da-chart-body"><canvas id="chartDaily" height="180"></canvas></div>
+  </div>
+
+  <div class="da-chart-card">
+    <div class="da-chart-head"><span class="da-chart-title">📆 פעילות שבועית</span></div>
+    <div class="da-chart-body"><canvas id="chartWeekly" height="160"></canvas></div>
+  </div>
+
+  <div class="da-chart-card">
+    <div class="da-chart-head"><span class="da-chart-title">⏰ עומס לפי שעה</span></div>
+    <div class="da-chart-body"><canvas id="chartHourly" height="160"></canvas></div>
+  </div>
+
+  <!-- Rankings -->
+  <div class="da-section-title">🏆 דירוגים</div>
+
+  <div class="da-chart-card">
+    <div class="da-chart-head"><span class="da-chart-title">🚗 שימוש נהגים</span></div>
+    <div id="daDriverRank"></div>
+  </div>
+
+  <div class="da-chart-card">
+    <div class="da-chart-head"><span class="da-chart-title">🚌 שימוש רכבים</span></div>
+    <div id="daVehicleRank"></div>
+  </div>
+
+  <div class="da-chart-card">
+    <div class="da-chart-head"><span class="da-chart-title">🌳 פעילות פלגות</span></div>
+    <div id="daPlatoonRank"></div>
+  </div>
+
+  <div style="height:90px;"></div>
+</div>
+
 <div class="page" id="page-settings">
   <!-- ADMIN PANEL -->
   <div id="adminSettingsPanel" style="display:none;">
@@ -1027,6 +1136,11 @@ body.light-mode .swipe-inner .trip-block{ background: #d1dce8 !important; }
   <button class="tab-btn" onclick="showPage('settings')" id="tab-settings">
     <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
     הגדרות
+  </button>
+  <!-- נתוני נסיעות -->
+  <button class="tab-btn" onclick="showPage('data')" id="tab-data" style="display:none;">
+    <svg viewBox="0 0 24 24"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg>
+    נתונים
   </button>
 </div>
 
@@ -1830,6 +1944,7 @@ function finishLogin(){
   document.getElementById('tab-trips').style.display=isAdmin?'flex':'none';
   document.getElementById('tab-driver').style.display=isGuest?'none':'flex';
   document.getElementById('tab-hierarchy').style.display=(isAdmin||isDriver||isStaff)?'flex':'none';
+  document.getElementById('tab-data').style.display=isAdmin?'flex':'none';
   // guests see only schedule; staff see schedule + propose + hierarchy
   if(isGuest) showPage('schedule');
   else if(isStaff) showPage('schedule');
@@ -1967,6 +2082,7 @@ function showPage(name){
   const isAdmin=currentUser?.role==='admin';
   document.getElementById('fab').style.display=isAdmin&&['schedule','trips'].includes(name)?'flex':'none';
   if(name==='hierarchy') renderHierarchyPage();
+  else if(name==='data'){ _daInitFilters(); renderDataPage(); }
   else render();
 }
 function setMode(m){
@@ -2002,6 +2118,7 @@ function render(){
   else if(currentPage==='trips') renderTripsList();
   else if(currentPage==='history') renderHistory();
   else if(currentPage==='analytics') renderAnalytics();
+  else if(currentPage==='data') renderDataPage();
   else if(currentPage==='settings') renderSettings();
   else if(currentPage==='pending') renderPending();
 }
@@ -2823,22 +2940,7 @@ function setStatus(id,status){
   toast(`${SM[status].e} ${SM[status].l}`);
 }
 function setActualTime(id){r(`trips/${id}`).update({actualTime:document.getElementById('actualTimeInput').value});toast('עודכן ✓');}
-function doNav(id){
-  const trip=S.trips[id]; if(!trip) return;
-  const dest=encodeURIComponent(trip.to);
-  // Try Apple Maps URI (works in iOS Files/Safari without external link warning)
-  // then Waze as fallback
-  const appleMaps=`maps://?daddr=${dest}&dirflg=d`;
-  const waze=`https://waze.com/ul?q=${dest}&navigate=yes`;
-  const gmap=`https://maps.google.com/?daddr=${dest}`;
-  // iOS: try maps:// first (native, no dialog)
-  const a=document.createElement('a');
-  a.href=appleMaps;
-  a.style.display='none';
-  document.body.appendChild(a);
-  try{ a.click(); }catch(e){ window.location.href=waze; }
-  document.body.removeChild(a);
-}
+function doNav(id){const trip=S.trips[id];if(!trip)return;window.open(`https://waze.com/ul?q=${encodeURIComponent(trip.to)}&navigate=yes`,'_blank');}
 
 function addTemplate(type){
   const ws=weekStart(S.weekOffset);const dd=new Date(ws);dd.setDate(ws.getDate()+S.selDay);const id=uid();
@@ -3351,7 +3453,247 @@ function renderAnalytics(){
   </div>`;
 }
 
-// ══════ SETTINGS ══════
+// ══════════════════════════════════════════════════════
+// DATA PAGE — נתוני נסיעות
+// ══════════════════════════════════════════════════════
+let _daPeriod='month', _daFiltersOpen=false;
+let _daCharts={}; // Chart instances registry
+
+function setDaPeriod(p,el){
+  _daPeriod=p;
+  document.querySelectorAll('.da-period-chip').forEach(c=>c.classList.remove('active'));
+  if(el) el.classList.add('active');
+  renderDataPage();
+}
+
+function toggleDaFilters(){
+  _daFiltersOpen=!_daFiltersOpen;
+  const panel=document.getElementById('daFiltersPanel');
+  const btn=document.getElementById('daFilterToggle');
+  if(panel) panel.style.display=_daFiltersOpen?'block':'none';
+  if(btn) btn.textContent=_daFiltersOpen?'✕ סגור':'⚙️ סינון';
+  if(_daFiltersOpen) _daInitFilters();
+}
+
+function _daInitFilters(){
+  const ds=document.getElementById('daFltDriver');
+  const vs=document.getElementById('daFltVehicle');
+  const ps=document.getElementById('daFltPlatoon');
+  if(ds&&ds.options.length<=1) ds.innerHTML='<option value="">כל הנהגים</option>'+drivers().map(d=>`<option value="${d.id}">${d.name}</option>`).join('');
+  if(vs&&vs.options.length<=1) vs.innerHTML='<option value="">כל הרכבים</option>'+vehicles().map(v=>`<option value="${v.id}">${v.name}</option>`).join('');
+  if(ps&&ps.options.length<=1) ps.innerHTML='<option value="">כל הפלגות</option>'+Object.values(S.hierarchy||{}).map(t=>`<option value="${t.name}">${t.name}</option>`).join('');
+}
+
+function clearDaFilters(){
+  ['daFltDriver','daFltVehicle','daFltPlatoon','daFltStatus','daFltFrom','daFltTo'].forEach(id=>{
+    const el=document.getElementById(id); if(el) el.value='';
+  });
+  renderDataPage();
+}
+
+function _getDaDateRange(){
+  const now=new Date();
+  if(_daPeriod==='month'){
+    const from=new Date(now.getFullYear(),now.getMonth(),1);
+    const to=new Date(now.getFullYear(),now.getMonth()+1,0);
+    return{from:ds(from),to:ds(to)};
+  }
+  if(_daPeriod==='week'){
+    const ws=weekStart(0);
+    const we=new Date(ws); we.setDate(ws.getDate()+6);
+    return{from:ds(ws),to:ds(we)};
+  }
+  return{from:'',to:''}; // all
+}
+
+function _getDaTrips(){
+  let arr=Object.values(S.trips||{});
+  const range=_getDaDateRange();
+  const fltFrom=document.getElementById('daFltFrom')?.value||range.from;
+  const fltTo=document.getElementById('daFltTo')?.value||range.to;
+  const fltDriver=document.getElementById('daFltDriver')?.value||'';
+  const fltVehicle=document.getElementById('daFltVehicle')?.value||'';
+  const fltStatus=document.getElementById('daFltStatus')?.value||'';
+  const fltPlatoon=document.getElementById('daFltPlatoon')?.value||'';
+
+  if(fltFrom) arr=arr.filter(t=>t.date>=fltFrom);
+  if(fltTo)   arr=arr.filter(t=>t.date<=fltTo);
+  if(fltDriver)  arr=arr.filter(t=>t.driverId===fltDriver);
+  if(fltVehicle) arr=arr.filter(t=>t.vehicleId===fltVehicle);
+  if(fltStatus)  arr=arr.filter(t=>t.status===fltStatus);
+  if(fltPlatoon){
+    const platoonTree=Object.values(S.hierarchy||{}).find(t=>t.name===fltPlatoon);
+    if(platoonTree){
+      const pUIDs=new Set(Object.values(platoonTree.nodes||{}).map(n=>n.userId).filter(Boolean));
+      arr=arr.filter(t=>{ const d=gd(t.driverId); return d&&(pUIDs.has(d.linkedUserId)||pUIDs.has(d.id)); });
+    }
+  }
+  return arr;
+}
+
+function _daDestroyChart(id){
+  if(_daCharts[id]){ try{_daCharts[id].destroy();}catch(e){} delete _daCharts[id]; }
+}
+
+function renderDataPage(){
+  const arr=_getDaTrips();
+  const total=arr.length;
+  const done=arr.filter(t=>t.status==='done').length;
+  const cancelled=arr.filter(t=>t.status==='cancelled').length;
+  const active=arr.filter(t=>['moving','pending'].includes(t.status)).length;
+  const delays=arr.filter(t=>t.status==='delayed').length;
+
+  // ── KPIs ──
+  const byUser={},byDriver={},byVehicle={};
+  arr.forEach(t=>{
+    if(t.sentBy) byUser[t.sentBy]=(byUser[t.sentBy]||0)+1;
+    if(t.driverId) byDriver[t.driverId]=(byDriver[t.driverId]||0)+1;
+    if(t.vehicleId) byVehicle[t.vehicleId]=(byVehicle[t.vehicleId]||0)+1;
+  });
+  const topUser=Object.entries(byUser).sort((a,b)=>b[1]-a[1])[0];
+  const topDriver=Object.entries(byDriver).sort((a,b)=>b[1]-a[1])[0];
+  const topVehicle=Object.entries(byVehicle).sort((a,b)=>b[1]-a[1])[0];
+  const range=_getDaDateRange();
+  const days=range.from&&range.to?Math.max(1,Math.ceil((new Date(range.to)-new Date(range.from))/(1000*60*60*24))+1):30;
+  const avgDaily=(total/days).toFixed(1);
+
+  // platoon activity
+  const byPlatoon={};
+  arr.forEach(t=>{
+    const drv=gd(t.driverId);
+    if(!drv) return;
+    Object.values(S.hierarchy||{}).forEach(tree=>{
+      const inTree=Object.values(tree.nodes||{}).some(n=>n.userId===drv.linkedUserId||n.userId===drv.id);
+      if(inTree) byPlatoon[tree.name]=(byPlatoon[tree.name]||0)+1;
+    });
+  });
+  const topPlatoon=Object.entries(byPlatoon).sort((a,b)=>b[1]-a[1])[0];
+
+  const topDriverUser=topDriver?gd(topDriver[0]):null;
+  const topVehicleObj=topVehicle?gv(topVehicle[0]):null;
+
+  document.getElementById('daKpiGrid').innerHTML=`
+    <div class="da-kpi amber"><div class="da-kpi-val">${total}</div><div class="da-kpi-lbl">סה"כ נסיעות</div><div class="da-kpi-sub">ממוצע ${avgDaily}/יום</div></div>
+    <div class="da-kpi green"><div class="da-kpi-val">${done}</div><div class="da-kpi-lbl">בוצעו</div><div class="da-kpi-sub">${total?Math.round(done/total*100):0}% מהנסיעות</div></div>
+    <div class="da-kpi red"><div class="da-kpi-val">${cancelled}</div><div class="da-kpi-lbl">בוטלו</div><div class="da-kpi-sub">${delays} עיכובים</div></div>
+    <div class="da-kpi blue"><div class="da-kpi-val">${active}</div><div class="da-kpi-lbl">פעילות/ממתינות</div><div class="da-kpi-sub">&nbsp;</div></div>
+    <div class="da-kpi purple" style="grid-column:1/-1;"><div style="font-size:11px;color:var(--txt3);font-weight:700;margin-bottom:6px;letter-spacing:.5px;">🏆 מובילים</div>
+      <div style="display:flex;gap:12px;flex-wrap:wrap;">
+        ${topUser?`<div><div style="font-size:10px;color:var(--txt3);">👤 שולח</div><div style="font-size:13px;font-weight:800;">${topUser[0]} <span style="color:var(--amber);">${topUser[1]}</span></div></div>`:''}
+        ${topDriverUser?`<div><div style="font-size:10px;color:var(--txt3);">🚗 נהג</div><div style="font-size:13px;font-weight:800;">${topDriverUser.name} <span style="color:var(--amber);">${topDriver[1]}</span></div></div>`:''}
+        ${topVehicleObj?`<div><div style="font-size:10px;color:var(--txt3);">🚌 רכב</div><div style="font-size:13px;font-weight:800;">${topVehicleObj.name} <span style="color:var(--amber);">${topVehicle[1]}</span></div></div>`:''}
+        ${topPlatoon?`<div><div style="font-size:10px;color:var(--txt3);">🌳 פלגה</div><div style="font-size:13px;font-weight:800;">${topPlatoon[0]} <span style="color:var(--amber);">${topPlatoon[1]}</span></div></div>`:''}
+      </div>
+    </div>
+  `;
+
+  // ── Charts ──
+  const CHART_DEFAULTS={
+    responsive:true,
+    maintainAspectRatio:false,
+    animation:{duration:400},
+    plugins:{legend:{display:false},tooltip:{rtl:true,bodyFont:{family:'inherit'},titleFont:{family:'inherit'}}},
+    scales:{
+      x:{ticks:{color:'#8899aa',font:{size:10,family:'inherit'},maxRotation:0},grid:{color:'rgba(255,255,255,.04)'}},
+      y:{ticks:{color:'#8899aa',font:{size:10,family:'inherit'}},grid:{color:'rgba(255,255,255,.06)'},beginAtZero:true}
+    }
+  };
+
+  // Daily chart
+  const byDate={};
+  arr.forEach(t=>{ if(t.date) byDate[t.date]=(byDate[t.date]||0)+1; });
+  const sortedDates=Object.keys(byDate).sort();
+  _daDestroyChart('daily');
+  const ctxD=document.getElementById('chartDaily');
+  if(ctxD&&sortedDates.length){
+    document.getElementById('chartDaily').parentElement.style.height=Math.max(160,sortedDates.length*18)+'px';
+    _daCharts['daily']=new Chart(ctxD,{
+      type:'bar',
+      data:{
+        labels:sortedDates.map(d=>{const p=d.split('-');return p[2]+'/'+p[1];}),
+        datasets:[{data:sortedDates.map(d=>byDate[d]),backgroundColor:'rgba(245,158,11,.75)',borderRadius:5,borderSkipped:false}]
+      },
+      options:{...CHART_DEFAULTS}
+    });
+  } else if(ctxD){
+    _daDestroyChart('daily');
+    ctxD.parentElement.innerHTML='<div class="empty" style="padding:20px;"><p>אין נתונים</p></div>';
+  }
+
+  // Weekly chart (by day-of-week)
+  const byDOW=Array(7).fill(0);
+  arr.forEach(t=>{ if(t.date){const d=new Date(t.date).getDay();byDOW[d]++;} });
+  const DOW_HE=['ראשון','שני','שלישי','רביעי','חמישי','שישי','שבת'];
+  _daDestroyChart('weekly');
+  const ctxW=document.getElementById('chartWeekly');
+  if(ctxW){
+    _daCharts['weekly']=new Chart(ctxW,{
+      type:'bar',
+      data:{
+        labels:DOW_HE,
+        datasets:[{data:byDOW,backgroundColor:byDOW.map((_,i)=>i===5||i===6?'rgba(168,85,247,.7)':'rgba(59,130,246,.75)'),borderRadius:5,borderSkipped:false}]
+      },
+      options:{...CHART_DEFAULTS}
+    });
+  }
+
+  // Hourly chart
+  const byHour=Array(24).fill(0);
+  arr.forEach(t=>{ if(t.time){const h=parseInt(t.time.split(':')[0]||0);if(h>=0&&h<24)byHour[h]++;} });
+  const hourLabels=Array.from({length:24},(_,i)=>i<10?'0'+i+':00':i+':00');
+  _daDestroyChart('hourly');
+  const ctxH=document.getElementById('chartHourly');
+  if(ctxH){
+    _daCharts['hourly']=new Chart(ctxH,{
+      type:'line',
+      data:{
+        labels:hourLabels,
+        datasets:[{data:byHour,borderColor:'var(--amber)',backgroundColor:'rgba(245,158,11,.12)',borderWidth:2,pointRadius:3,pointBackgroundColor:'var(--amber)',tension:.3,fill:true}]
+      },
+      options:{...CHART_DEFAULTS}
+    });
+  }
+
+  // ── Rankings ──
+  function rankHtml(entries,labelFn,colorFn){
+    if(!entries.length) return '<div class="empty" style="padding:14px;"><p>אין נתונים</p></div>';
+    const max=entries[0][1]||1;
+    return entries.slice(0,8).map(([id,cnt],i)=>{
+      const pct=Math.round(cnt/max*100);
+      const color=colorFn?colorFn(id):'var(--amber)';
+      return`<div class="da-rank-row">
+        <div class="da-rank-num">${i+1}</div>
+        <div class="da-rank-name">${labelFn(id)}</div>
+        <div class="da-rank-bar-wrap"><div class="da-rank-bar" style="width:${pct}%;background:${color};"></div></div>
+        <div class="da-rank-val">${cnt}</div>
+      </div>`;
+    }).join('');
+  }
+
+  const driverEntries=Object.entries(byDriver).sort((a,b)=>b[1]-a[1]);
+  document.getElementById('daDriverRank').innerHTML=rankHtml(
+    driverEntries,
+    id=>gd(id)?.name||id,
+    id=>gd(id)?.color||'var(--blue)'
+  );
+
+  const vehicleEntries=Object.entries(byVehicle).sort((a,b)=>b[1]-a[1]);
+  document.getElementById('daVehicleRank').innerHTML=rankHtml(
+    vehicleEntries,
+    id=>gv(id)?.name||id,
+    ()=>'var(--teal)'
+  );
+
+  const platoonEntries=Object.entries(byPlatoon).sort((a,b)=>b[1]-a[1]);
+  document.getElementById('daPlatoonRank').innerHTML=rankHtml(
+    platoonEntries,
+    name=>name,
+    ()=>'#a855f7'
+  );
+}
+
+// ══════════════════════════════════════════════════════
+
 function renderSettings(){
   if(!currentUser)return;
   const _isAdmin=currentUser.role==='admin';
@@ -4027,41 +4369,15 @@ function openVehicleDetail(id){
             <div class="doc-meta">${d.uploadedAt?new Date(d.uploadedAt).toLocaleDateString('he-IL'):''}</div>
           </div>
           <div style="display:flex;gap:4px;">
-            <button class="btn btn-ghost btn-xs" onclick="viewVehicleDoc('${d.url}','${d.name||''}')">👁️</button>
-            <button class="btn btn-ghost btn-xs" onclick="_downloadDoc('${d.url}','${d.name||'מסמך'}')">⬇️</button>
+            <a href="${d.url}" target="_blank" class="btn btn-ghost btn-xs">👁️</a>
+            <a href="${d.url}" download class="btn btn-ghost btn-xs">⬇️</a>
           </div>
         </div>`).join('')}</div>`;
   });
   openModal('vehicleDetailModal');
 }
 
-function _downloadDoc(dataUrl, name){
-  // iOS-safe document download (base64 data URL stored in DB)
-  const a=document.createElement('a');
-  a.href=dataUrl;
-  a.download=name;
-  a.style.display='none';
-  document.body.appendChild(a);
-  try{ a.click(); }catch(e){ toast('לא ניתן להוריד — פתח מהדפדפן'); }
-  document.body.removeChild(a);
-}
-
-function viewVehicleDoc(dataUrl, name){
-  // Open inline viewer modal instead of new tab
-  const modal=document.getElementById('vehicleDetailModal');
-  const body=document.getElementById('vDetailBody');
-  if(!body) return;
-  const isImg=dataUrl.startsWith('data:image');
-  const isPdf=dataUrl.startsWith('data:application/pdf');
-  body.innerHTML=`
-    <div style="text-align:center;padding:8px 0 12px;font-size:13px;font-weight:700;">${name||'מסמך'}</div>
-    ${isImg?`<img src="${dataUrl}" style="width:100%;border-radius:8px;max-height:60vh;object-fit:contain;">`:
-      isPdf?`<iframe src="${dataUrl}" style="width:100%;height:60vh;border:none;border-radius:8px;"></iframe>`:
-      `<div style="padding:20px;text-align:center;color:var(--txt2);">סוג קובץ לא נתמך לתצוגה<br><br><button class="btn btn-amber btn-block" onclick="_downloadDoc('${dataUrl}','${name||'מסמך'}')">⬇️ הורד</button></div>`}
-    <button class="btn btn-ghost btn-block" style="margin-top:10px;" onclick="_downloadDoc('${dataUrl}','${name||'מסמך'}')">⬇️ הורד</button>
-  `;
-  openModal('vehicleDetailModal');
-}
+// ── Service history modal ──
 function openVehicleServiceHistory(vehicleId){
   const v=gv(vehicleId);
   document.getElementById('vehicleServiceBody').innerHTML='<div class="empty"><p>טוען...</p></div>';
@@ -4178,19 +4494,8 @@ function quickComment(text){document.getElementById('commentText').value=text;ad
 
 function exportData(){
   haptic('light');
-  try{
-    const json=JSON.stringify({trips:S.trips,drivers:S.drivers,vehicles:S.vehicles},null,2);
-    // Use data URI (iOS-safe, no external link warning)
-    const dataUri='data:application/json;charset=utf-8,'+encodeURIComponent(json);
-    const a=document.createElement('a');
-    a.href=dataUri;
-    a.download=`navSystem_${new Date().toISOString().slice(0,10)}.json`;
-    a.style.display='none';
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
-    toast('✓ גיבוי הורד');
-  }catch(e){toast('שגיאת ייצוא: '+e.message);}
+  const blob=new Blob([JSON.stringify({trips:S.trips,drivers:S.drivers,vehicles:S.vehicles},null,2)],{type:'application/json'});
+  const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download=`navSystem_${new Date().toISOString().slice(0,10)}.json`;a.click();
 }
 
 // ══ EXPORT SYSTEM ══
@@ -4229,13 +4534,8 @@ function doExport(format){
     if(target==='trips') data=S.trips;
     else if(target==='drivers') data=S.drivers;
     else data=S.vehicles;
-    const json=JSON.stringify(data,null,2);
-    const dataUri='data:application/json;charset=utf-8,'+encodeURIComponent(json);
-    const a=document.createElement('a');
-    a.href=dataUri; a.download=`${target}_${date}.json`;
-    a.style.display='none'; document.body.appendChild(a);
-    a.click(); document.body.removeChild(a);
-    toast('✓ JSON הורד');
+    const blob=new Blob([JSON.stringify(data,null,2)],{type:'application/json'});
+    _download(URL.createObjectURL(blob),`${target}_${date}.json`);
     return;
   }
   if(format==='excel') _exportExcel(target,date);
@@ -4243,20 +4543,9 @@ function doExport(format){
 }
 
 function _download(url,name){
-  try{
-    const a=document.createElement('a');
-    a.href=url;
-    a.download=name;
-    a.style.display='none';
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
-    // revoke after short delay only for blob URLs
-    if(url.startsWith('blob:')) setTimeout(()=>URL.revokeObjectURL(url),5000);
-  }catch(e){
-    // iOS Files app fallback — open in new tab
-    try{ window.location.href=url; }catch(e2){ console.warn('Download failed:',e2); }
-  }
+  const a=document.createElement('a');a.href=url;a.download=name;
+  document.body.appendChild(a);a.click();document.body.removeChild(a);
+  setTimeout(()=>URL.revokeObjectURL(url),5000);
 }
 
 function _exportExcel(target,date){
@@ -4313,16 +4602,9 @@ function _exportExcel(target,date){
       ws['!cols']=[{wch:18},{wch:12},{wch:12},{wch:8},{wch:12},{wch:14},{wch:10}];
     }
     XLSX.utils.book_append_sheet(wb,ws,name);
-    const buf=XLSX.write(wb,{bookType:'xlsx',type:'base64'});
-    // iOS-safe: data URI instead of blob URL
-    const dataUri='data:application/vnd.openxmlformats-officedocument.spreadsheetml.sheet;base64,'+buf;
-    const a=document.createElement('a');
-    a.href=dataUri;
-    a.download=`${target}_${date}.xlsx`;
-    a.style.display='none';
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
+    const buf=XLSX.write(wb,{bookType:'xlsx',type:'array'});
+    const blob=new Blob([buf],{type:'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'});
+    _download(URL.createObjectURL(blob),`${target}_${date}.xlsx`);
     toast('📊 Excel הורד בהצלחה ✓');
     haptic('success');
   }catch(e){toast('שגיאה ביצוא Excel: '+e.message);console.error(e);}
@@ -4381,21 +4663,7 @@ function _exportPDF(target,date){
       tableWidth:'auto',
     });
 
-    // iOS-safe: use datauri instead of doc.save() which triggers window.open
-    try {
-      const pdfOutput = doc.output('datauristring');
-      const a = document.createElement('a');
-      a.href = pdfOutput;
-      a.download = `${target}_${date}.pdf`;
-      a.style.display='none';
-      document.body.appendChild(a);
-      a.click();
-      document.body.removeChild(a);
-    } catch(saveErr) {
-      // Final fallback: blob download
-      const blob = doc.output('blob');
-      _download(URL.createObjectURL(blob), `${target}_${date}.pdf`);
-    }
+    doc.save(`${target}_${date}.pdf`);
     toast('📄 PDF הורד בהצלחה ✓');
     haptic('success');
   }catch(e){toast('שגיאה ביצוא PDF: '+e.message);console.error(e);}
