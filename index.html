@@ -224,11 +224,140 @@ button,input,select,textarea{font-family:'Heebo',sans-serif;}
 .mode-btn{padding:5px 12px;font-size:11px;font-weight:700;border:none;background:transparent;color:var(--txt2);cursor:pointer;transition:all .2s;}
 .mode-btn.active{background:var(--amber);color:#000;}
 
-#tabs{position:fixed;bottom:0;right:0;left:0;z-index:200;height:calc(var(--tab-h) + var(--safe-b));padding-bottom:var(--safe-b);background:rgba(10,15,26,.97);backdrop-filter:blur(20px);border-top:1px solid var(--border);display:flex;align-items:stretch;}
-.tab-btn{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:4px;border:none;background:transparent;color:var(--txt3);font-size:9px;font-weight:700;cursor:pointer;transition:color .2s;padding-top:4px;}
-.tab-btn svg{width:22px;height:22px;stroke:currentColor;stroke-width:1.6;fill:none;stroke-linecap:round;stroke-linejoin:round;transition:stroke .2s, transform .15s;display:block;}
+/* ══ NEW BOTTOM NAV ══ */
+#tabs{
+  position:fixed;bottom:0;right:0;left:0;z-index:200;
+  height:calc(var(--tab-h) + var(--safe-b));
+  padding-bottom:var(--safe-b);
+  background:rgba(10,15,26,.97);
+  backdrop-filter:blur(20px);
+  border-top:1px solid var(--border);
+  display:flex;align-items:stretch;
+}
+.tab-btn{
+  flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;
+  gap:3px;border:none;background:transparent;color:var(--txt3);
+  font-size:9px;font-weight:700;cursor:pointer;transition:color .2s;padding-top:4px;
+  -webkit-tap-highlight-color:transparent;
+}
+.tab-btn svg{
+  width:22px;height:22px;stroke:currentColor;stroke-width:1.6;fill:none;
+  stroke-linecap:round;stroke-linejoin:round;transition:stroke .2s,transform .15s;display:block;
+}
 .tab-btn.active{color:var(--amber);}
-.tab-btn.active svg{transform:scale(1.08);}
+.tab-btn.active svg{transform:scale(1.1);}
+
+/* Center FAB slot */
+.tab-fab-slot{
+  flex:1;display:flex;align-items:center;justify-content:center;
+  position:relative;pointer-events:none;
+}
+#fabCenter{
+  position:absolute;
+  bottom:8px;
+  width:52px;height:52px;
+  background:var(--amber);
+  border:3px solid var(--ink);
+  border-radius:50%;
+  display:flex;align-items:center;justify-content:center;
+  font-size:24px;font-weight:900;color:#000;
+  cursor:pointer;pointer-events:auto;
+  box-shadow:0 4px 20px rgba(245,158,11,.5);
+  transition:transform .15s,box-shadow .15s;
+  z-index:210;
+}
+#fabCenter:active{transform:scale(.92);box-shadow:0 2px 10px rgba(245,158,11,.3);}
+
+/* FAB action sheet */
+#fabSheet{
+  position:fixed;bottom:0;right:0;left:0;z-index:500;
+  background:rgba(0,0,0,.6);backdrop-filter:blur(8px);
+  display:none;align-items:flex-end;
+}
+#fabSheet.open{display:flex;animation:fadeIn .18s ease;}
+#fabSheetInner{
+  width:100%;background:var(--panel);
+  border:1px solid var(--border);
+  border-radius:20px 20px 0 0;
+  padding:12px 0 calc(20px + var(--safe-b));
+  animation:mUp .22s cubic-bezier(.34,1.4,.64,1);
+}
+.fab-action-item{
+  display:flex;align-items:center;gap:14px;
+  padding:14px 20px;cursor:pointer;
+  transition:background .15s;
+}
+.fab-action-item:active{background:var(--ink3);}
+.fab-action-icon{
+  width:44px;height:44px;border-radius:14px;
+  display:flex;align-items:center;justify-content:center;
+  font-size:20px;flex-shrink:0;
+}
+.fab-action-label{font-size:15px;font-weight:800;}
+.fab-action-sub{font-size:12px;color:var(--txt2);margin-top:1px;}
+
+/* Keep old FAB hidden */
+#fab{display:none!important;}
+
+.ub-text{font-size:13px;font-weight:700;}
+.ub-btn{background:var(--amber);color:#000;border:none;border-radius:6px;padding:6px 14px;font-size:12px;font-weight:800;cursor:pointer;}
+
+/* Toast position update */
+#toast{position:fixed;bottom:calc(var(--tab-h) + var(--safe-b) + 68px);left:50%;transform:translateX(-50%);z-index:999;background:var(--ink3);border:1px solid var(--border2);border-radius:999px;padding:10px 20px;font-size:13px;font-weight:700;color:var(--txt);opacity:0;pointer-events:none;transition:opacity .3s;white-space:nowrap;}
+#toast.show{opacity:1;}
+#undo-bar{position:fixed;bottom:calc(var(--tab-h) + var(--safe-b) + 62px);left:12px;right:12px;z-index:300;background:var(--ink3);border:1px solid var(--border2);border-radius:var(--r);padding:12px 16px;display:flex;align-items:center;justify-content:space-between;box-shadow:var(--sh);transform:translateY(200%);transition:transform .3s cubic-bezier(.34,1.56,.64,1);}
+#undo-bar.show{transform:translateY(0);}
+
+/* ── Personal screen ── */
+#page-personal .personal-header{
+  padding:20px 16px 16px;
+  background:linear-gradient(160deg,var(--ink2),var(--ink3));
+  border-bottom:1px solid var(--border);
+  display:flex;align-items:center;gap:14px;
+}
+.personal-avatar-wrap{position:relative;flex-shrink:0;}
+.personal-role-badge{
+  position:absolute;bottom:-4px;right:-4px;
+  font-size:14px;
+  background:var(--ink);border:2px solid var(--ink);
+  border-radius:50%;width:22px;height:22px;
+  display:flex;align-items:center;justify-content:center;
+}
+.personal-name{font-size:19px;font-weight:900;line-height:1.2;}
+.personal-role{font-size:12px;color:var(--txt2);margin-top:2px;}
+.personal-platoon{font-size:11px;color:var(--amber);font-weight:700;margin-top:3px;}
+.personal-section-btn{
+  display:flex;align-items:center;gap:14px;
+  padding:14px 16px;cursor:pointer;
+  border-bottom:1px solid var(--border);
+  transition:background .15s;
+  -webkit-tap-highlight-color:transparent;
+}
+.personal-section-btn:last-child{border-bottom:none;}
+.personal-section-btn:active{background:var(--ink3);}
+.psb-icon{width:40px;height:40px;border-radius:12px;display:flex;align-items:center;justify-content:center;font-size:20px;flex-shrink:0;}
+.psb-body{flex:1;min-width:0;}
+.psb-label{font-size:14px;font-weight:800;}
+.psb-sub{font-size:11px;color:var(--txt2);margin-top:2px;}
+.psb-chevron{color:var(--txt3);font-size:18px;flex-shrink:0;}
+
+/* Sub-screen back nav */
+.subscreen-header{
+  display:flex;align-items:center;gap:10px;
+  padding:10px 14px;
+  background:var(--panel);
+  border-bottom:1px solid var(--border);
+  position:sticky;top:var(--topbar-h);z-index:10;
+}
+.subscreen-back{
+  background:var(--ink3);border:1px solid var(--border2);
+  border-radius:8px;padding:6px 12px;
+  color:var(--txt);font-size:13px;font-weight:800;
+  cursor:pointer;border:none;white-space:nowrap;
+}
+.subscreen-title{flex:1;font-size:16px;font-weight:900;}
+
+@keyframes fadeIn{from{opacity:0;}to{opacity:1;}}
 
 .page{display:none;padding-top:calc(var(--topbar-h) + 8px);padding-bottom:calc(var(--tab-h) + var(--safe-b) + 12px);min-height:100dvh;}
 .page.active{display:block;animation:pgIn .2s ease;}
@@ -460,14 +589,6 @@ button,input,select,textarea{font-family:'Heebo',sans-serif;}
 
 .color-opt{width:28px;height:28px;border-radius:50%;cursor:pointer;border:2px solid transparent;display:inline-block;}
 
-#fab{position:fixed;bottom:calc(var(--tab-h) + var(--safe-b) + 16px);left:50%;transform:translateX(-50%);z-index:150;background:var(--amber);color:#000;border:none;border-radius:999px;padding:13px 22px;font-size:14px;font-weight:900;cursor:pointer;display:flex;align-items:center;gap:8px;box-shadow:0 6px 28px rgba(245,158,11,.4);}
-#fab:active{transform:translateX(-50%) scale(.95);}
-#toast{position:fixed;bottom:calc(var(--tab-h) + var(--safe-b) + 80px);left:50%;transform:translateX(-50%);z-index:999;background:var(--ink3);border:1px solid var(--border2);border-radius:999px;padding:10px 20px;font-size:13px;font-weight:700;color:var(--txt);opacity:0;pointer-events:none;transition:opacity .3s;white-space:nowrap;}
-#toast.show{opacity:1;}
-#undo-bar{position:fixed;bottom:calc(var(--tab-h) + var(--safe-b) + 70px);left:12px;right:12px;z-index:300;background:var(--ink3);border:1px solid var(--border2);border-radius:var(--r);padding:12px 16px;display:flex;align-items:center;justify-content:space-between;box-shadow:var(--sh);transform:translateY(200%);transition:transform .3s cubic-bezier(.34,1.56,.64,1);}
-#undo-bar.show{transform:translateY(0);}
-.ub-text{font-size:13px;font-weight:700;}
-.ub-btn{background:var(--amber);color:#000;border:none;border-radius:6px;padding:6px 14px;font-size:12px;font-weight:800;cursor:pointer;}
 /* Night trip highlight */
 .trip-block.night-trip{
   background: #1a0d40 !important;
@@ -844,84 +965,13 @@ body.light-mode .swipe-inner .trip-block{ background: #d1dce8 !important; }
 </div>
 
 <div class="page" id="page-analytics">
-  <!-- ── FILTERS ── -->
-  <div style="padding:10px 12px 0;">
-    <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:8px;">
-      <select id="anFilterMonth" onchange="renderAnalyticsPage()" style="padding:9px 11px;border-radius:8px;background:var(--ink3);border:1px solid var(--border2);color:var(--txt);font-size:13px;outline:none;"></select>
-      <select id="anFilterPlatoon" onchange="renderAnalyticsPage()" style="padding:9px 11px;border-radius:8px;background:var(--ink3);border:1px solid var(--border2);color:var(--txt);font-size:13px;outline:none;"><option value="">כל הפלגות</option></select>
-    </div>
-    <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;margin-bottom:4px;">
-      <select id="anFilterDriver" onchange="renderAnalyticsPage()" style="padding:9px 8px;border-radius:8px;background:var(--ink3);border:1px solid var(--border2);color:var(--txt);font-size:12px;outline:none;"><option value="">כל הנהגים</option></select>
-      <select id="anFilterVehicle" onchange="renderAnalyticsPage()" style="padding:9px 8px;border-radius:8px;background:var(--ink3);border:1px solid var(--border2);color:var(--txt);font-size:12px;outline:none;"><option value="">כל הרכבים</option></select>
-      <select id="anFilterStatus" onchange="renderAnalyticsPage()" style="padding:9px 8px;border-radius:8px;background:var(--ink3);border:1px solid var(--border2);color:var(--txt);font-size:12px;outline:none;"><option value="">כל הסטטוסים</option><option value="done">בוצע</option><option value="pending">ממתין</option><option value="moving">בדרך</option><option value="cancelled">בוטל</option><option value="delayed">עיכוב</option></select>
-    </div>
+  <div class="sec-title">סיכום שבוע</div>
+  <div class="stats-strip" id="analyticsStats"></div>
+  <div style="padding:0 12px;">
+    <div class="card"><div class="card-head"><h3>📊 עומס יומי</h3></div><div class="card-body" id="loadBars"></div></div>
+    <div class="card"><div class="card-head"><h3>👤 לפי נהג</h3></div><div class="card-body" id="driverBars"></div></div>
+    <div class="card"><div class="card-head"><h3>⏱️ עיכובים</h3></div><div class="card-body" id="delayStats"></div></div>
   </div>
-
-  <!-- ── KPI STRIP ── -->
-  <div id="anKpiStrip" style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px;padding:10px 12px;"></div>
-
-  <!-- ── ROW 2 KPIs ── -->
-  <div id="anKpiStrip2" style="display:grid;grid-template-columns:repeat(2,1fr);gap:8px;padding:0 12px 4px;"></div>
-
-  <!-- ── DAILY ACTIVITY CHART ── -->
-  <div style="padding:0 12px 8px;">
-    <div class="card">
-      <div class="card-head"><h3>📅 פעילות יומית (חודש)</h3></div>
-      <div class="card-body" style="padding:8px;"><canvas id="anDailyChart" height="160"></canvas></div>
-    </div>
-  </div>
-
-  <!-- ── WEEKLY CHART ── -->
-  <div style="padding:0 12px 8px;">
-    <div class="card">
-      <div class="card-head"><h3>📆 עומס לפי ימי שבוע</h3></div>
-      <div class="card-body" style="padding:8px;"><canvas id="anWeeklyChart" height="140"></canvas></div>
-    </div>
-  </div>
-
-  <!-- ── HOUR HEATMAP ── -->
-  <div style="padding:0 12px 8px;">
-    <div class="card">
-      <div class="card-head"><h3>🕐 עומס לפי שעות</h3></div>
-      <div class="card-body" id="anHourHeatmap" style="padding:10px 8px;"></div>
-    </div>
-  </div>
-
-  <!-- ── VEHICLE USAGE ── -->
-  <div style="padding:0 12px 8px;">
-    <div class="card">
-      <div class="card-head"><h3>🚌 שימוש רכבים</h3></div>
-      <div class="card-body" style="padding:8px;"><canvas id="anVehicleChart" height="160"></canvas></div>
-    </div>
-  </div>
-
-  <!-- ── DRIVER USAGE ── -->
-  <div style="padding:0 12px 8px;">
-    <div class="card">
-      <div class="card-head"><h3>👤 שימוש נהגים</h3></div>
-      <div class="card-body" style="padding:8px;"><canvas id="anDriverChart" height="160"></canvas></div>
-    </div>
-  </div>
-
-  <!-- ── PLATOON ACTIVITY ── -->
-  <div style="padding:0 12px 8px;">
-    <div class="card">
-      <div class="card-head"><h3>🏢 פעילות פלגות</h3></div>
-      <div class="card-body" id="anPlatoonBars" style="padding:10px;"></div>
-    </div>
-  </div>
-
-  <!-- ── STATUS BREAKDOWN ── -->
-  <div style="padding:0 12px 8px;">
-    <div class="card">
-      <div class="card-head"><h3>📊 סטטוסים</h3></div>
-      <div class="card-body" style="padding:8px;display:flex;align-items:center;gap:12px;">
-        <canvas id="anStatusChart" width="130" height="130" style="flex-shrink:0;"></canvas>
-        <div id="anStatusLegend" style="flex:1;"></div>
-      </div>
-    </div>
-  </div>
-
   <div style="height:80px;"></div>
 </div>
 
@@ -1081,52 +1131,74 @@ body.light-mode .swipe-inner .trip-block{ background: #d1dce8 !important; }
 
 </div>
 
-<!-- TABS -->
+<!-- PERSONAL PAGE -->
+<div class="page" id="page-personal">
+  <!-- Header -->
+  <div class="personal-header" id="personalHeader"></div>
+
+  <!-- Sub-screen container (hidden by default) -->
+  <div id="personalSubScreen" style="display:none;">
+    <div class="subscreen-header">
+      <button class="subscreen-back" onclick="closePersonalSub()">← חזרה</button>
+      <div class="subscreen-title" id="personalSubTitle"></div>
+    </div>
+    <div id="personalSubContent" style="padding-bottom:80px;"></div>
+  </div>
+
+  <!-- Main menu -->
+  <div id="personalMenu">
+    <!-- Stats mini strip -->
+    <div id="personalMiniStats" style="padding:12px 12px 4px;"></div>
+
+    <!-- Menu sections -->
+    <div style="padding:0 12px;">
+      <div class="card" style="margin-bottom:12px;" id="personalMenuCard"></div>
+    </div>
+    <div style="height:80px;"></div>
+  </div>
+</div>
+
+<!-- TABS — new bottom nav -->
 <div id="tabs">
-  <!-- לוח שבועי -->
+  <!-- לוח -->
   <button class="tab-btn active" onclick="showPage('schedule')" id="tab-schedule">
-    <svg viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/><line x1="8" y1="14" x2="8" y2="14" stroke-width="2.5"/><line x1="12" y1="14" x2="12" y2="14" stroke-width="2.5"/><line x1="16" y1="14" x2="16" y2="14" stroke-width="2.5"/><line x1="8" y1="18" x2="8" y2="18" stroke-width="2.5"/><line x1="12" y1="18" x2="12" y2="18" stroke-width="2.5"/></svg>
+    <svg viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
     לוח
   </button>
   <!-- נהג -->
   <button class="tab-btn" onclick="showPage('driver')" id="tab-driver">
-    <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 8v4l2.5 2.5"/><circle cx="12" cy="12" r="3" stroke-width="1.2"/><line x1="12" y1="3" x2="12" y2="5"/><line x1="12" y1="19" x2="12" y2="21"/><line x1="3" y1="12" x2="5" y2="12"/><line x1="19" y1="12" x2="21" y2="12"/></svg>
+    <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 8v4l2.5 2.5"/></svg>
     נהג
   </button>
-  <!-- נסיעות -->
-  <button class="tab-btn" onclick="showPage('trips')" id="tab-trips">
-    <svg viewBox="0 0 24 24"><rect x="2" y="7" width="20" height="14" rx="2"/><path d="M16 7V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v2"/><line x1="12" y1="12" x2="12" y2="16"/><line x1="10" y1="14" x2="14" y2="14"/></svg>
-    נסיעות
-  </button>
-  <!-- בקשות אישור -->
+  <!-- Center FAB slot -->
+  <div class="tab-fab-slot">
+    <button id="fabCenter" onclick="openFabSheet()">＋</button>
+  </div>
+  <!-- בקשות -->
   <button class="tab-btn" onclick="showPage('pending')" id="tab-pending" style="display:none;">
     <svg viewBox="0 0 24 24"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg>
     בקשות
     <span class="tab-badge" id="pendingBadge" style="display:none;"></span>
   </button>
-  <!-- הצע נסיעה -->
+  <!-- הצע — for driver/staff -->
   <button class="tab-btn" onclick="showPage('propose')" id="tab-propose" style="display:none;">
     <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><line x1="12" y1="8" x2="12" y2="16"/><line x1="8" y1="12" x2="16" y2="12"/></svg>
     הצע
   </button>
-  <!-- היררכיה -->
-  <button class="tab-btn" onclick="showPage('hierarchy')" id="tab-hierarchy" style="display:none;">
-    <svg viewBox="0 0 24 24"><rect x="9" y="2" width="6" height="4" rx="1"/><rect x="2" y="18" width="6" height="4" rx="1"/><rect x="9" y="18" width="6" height="4" rx="1"/><rect x="16" y="18" width="6" height="4" rx="1"/><line x1="12" y1="6" x2="12" y2="11"/><line x1="5" y1="18" x2="5" y2="14"/><line x1="12" y1="18" x2="12" y2="14"/><line x1="19" y1="18" x2="19" y2="14"/><line x1="5" y1="14" x2="19" y2="14"/></svg>
-    היררכיה
-  </button>
-  <!-- נתוני נסיעות -->
-  <button class="tab-btn" onclick="showPage('analytics')" id="tab-analytics" style="display:none;">
-    <svg viewBox="0 0 24 24"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/><line x1="2" y1="20" x2="22" y2="20"/></svg>
-    נתונים
-  </button>
-  <!-- הגדרות -->
-  <button class="tab-btn" onclick="showPage('settings')" id="tab-settings">
-    <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
-    הגדרות
+  <!-- אישי -->
+  <button class="tab-btn" onclick="showPage('personal')" id="tab-personal">
+    <svg viewBox="0 0 24 24"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+    אישי
   </button>
 </div>
 
-<button id="fab" onclick="openAddTrip()" style="display:none;">＋ נסיעה חדשה</button>
+<!-- FAB ACTION SHEET -->
+<div id="fabSheet" onclick="closeFabSheet(this)">
+  <div id="fabSheetInner">
+    <div style="width:36px;height:4px;border-radius:2px;background:var(--border2);margin:0 auto 14px;"></div>
+    <div id="fabSheetItems"></div>
+  </div>
+</div>
 <div id="toast"></div>
 <div id="undo-bar"><span class="ub-text" id="undoText">פעולה בוצעה</span><button class="ub-btn" onclick="doUndo()">בטל</button></div>
 
@@ -1474,8 +1546,6 @@ body.light-mode .swipe-inner .trip-block{ background: #d1dce8 !important; }
   </div>
 </div>
 
-<!-- Chart.js for analytics -->
-<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
 <!-- EmailJS for real OTP emails -->
 <!-- jsPDF for PDF export -->
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
@@ -1531,8 +1601,8 @@ function _enableOfflineSync(){
 }
 
 // ══════ APP VERSION ══════
-const APP_VERSION = 'beta 35';
-const APP_BUILD   = '2026-04-26';
+const APP_VERSION = '33';
+const APP_BUILD   = '2026-04-24';
 
 function publishVersion(){
   r('app/version').transaction(cur=>{
@@ -1922,17 +1992,13 @@ function finishLogin(){
   const isStaff=currentUser.role==='staff';
   const isDriver=!isAdmin&&!isGuest&&!isStaff;
   document.getElementById('modePill').style.display=isAdmin?'flex':'none';
-  document.getElementById('fab').style.display=isAdmin?'flex':'none';
   document.getElementById('tab-pending').style.display=isAdmin?'flex':'none';
   document.getElementById('tab-propose').style.display=(isDriver||isStaff)?'flex':'none';
-  document.getElementById('tab-trips').style.display=isAdmin?'flex':'none';
   document.getElementById('tab-driver').style.display=isGuest?'none':'flex';
-  document.getElementById('tab-hierarchy').style.display=(isAdmin||isDriver||isStaff)?'flex':'none';
-  document.getElementById('tab-analytics').style.display=isAdmin?'flex':'none';
-  // guests see only schedule; staff see schedule + propose + hierarchy
   if(isGuest) showPage('schedule');
   else if(isStaff) showPage('schedule');
   else if(!isAdmin) showPage('driver');
+  else showPage('schedule');
   const ub=document.getElementById('undo-bar');
   ub.style.display='none'; ub.classList.remove('show'); undoStack=[];
   document.getElementById('themeBtn').textContent=lightMode?'☀️':'🌙';
@@ -1940,7 +2006,6 @@ function finishLogin(){
   loadNotifSettings();
   startNotifListener();
   startTripReminders();
-  // בדוק משתמשים זמניים שפג תוקפם
   if(currentUser.role==='admin') checkExpiredGuests();
   if(isGuest) toast(`ברוך הבא ${currentUser.name}! 👁️ צפייה בלבד`);
   else if(isStaff) toast(`ברוך הבא, ${currentUser.name}! 🎖️`);
@@ -2063,10 +2128,9 @@ function showPage(name){
   document.querySelectorAll('.tab-btn').forEach(b=>b.classList.remove('active'));
   document.getElementById('page-'+name)?.classList.add('active');
   document.getElementById('tab-'+name)?.classList.add('active');
-  const isAdmin=currentUser?.role==='admin';
-  document.getElementById('fab').style.display=isAdmin&&['schedule','trips'].includes(name)?'flex':'none';
   if(name==='hierarchy') renderHierarchyPage();
   else if(name==='analytics') renderAnalyticsPage();
+  else if(name==='personal'){ closePersonalSub(); renderPersonalPage(); }
   else render();
 }
 function setMode(m){
@@ -3487,318 +3551,379 @@ function renderAnalytics(){
   </div>`;
 }
 
-function renderAnalytics(){
-  const ws=weekStart(S.weekOffset);const byDay={};const wt=[];
-  for(let d=0;d<7;d++){const dd=new Date(ws);dd.setDate(ws.getDate()+d);byDay[d]=trips().filter(t=>t.date===ds(dd));byDay[d].forEach(t=>wt.push(t));}
-  document.getElementById('analyticsStats').innerHTML=`
-    <div class="stat-box stat-amber"><div class="sn">${wt.length}</div><div class="sl">סה"כ</div></div>
-    <div class="stat-box stat-green"><div class="sn">${wt.filter(t=>t.status==='done').length}</div><div class="sl">בוצעו</div></div>
-    <div class="stat-box stat-red"><div class="sn">${wt.filter(t=>t.status==='delayed').length}</div><div class="sl">עיכובים</div></div>
-    <div class="stat-box stat-blue"><div class="sn">${wt.filter(t=>t.status==='cancelled').length}</div><div class="sl">בוטלו</div></div>`;
-  const maxD=Math.max(1,...Object.values(byDay).map(a=>a.length));
-  document.getElementById('loadBars').innerHTML=Object.entries(byDay).map(([d,arr])=>{
-    const pct=Math.round(arr.length/maxD*100);const cls=pct<40?'load-low':pct<70?'load-medium':pct<90?'load-high':'load-over';
-    return`<div class="load-bar-row"><div class="lb-label">${DAYS_SH[d]}</div><div class="lb-track"><div class="lb-fill ${cls}" style="width:${pct}%;"></div></div><div class="lb-val">${arr.length}</div></div>`;
-  }).join('');
-  const byDrv={};wt.forEach(t=>{if(!t.driverId)return;(byDrv[t.driverId]=byDrv[t.driverId]||[]).push(t);});
-  const maxDrv=Math.max(1,...Object.values(byDrv).map(a=>a.length));
-  document.getElementById('driverBars').innerHTML=Object.entries(byDrv).map(([dId,arr])=>{
-    const d=gd(dId);const pct=Math.round(arr.length/maxDrv*100);
-    return`<div class="load-bar-row"><div class="lb-label" style="width:44px;font-size:10px;overflow:hidden;white-space:nowrap;">${d?.name||'?'}</div><div class="lb-track"><div class="lb-fill" style="width:${pct}%;background:${d?.color||'var(--blue)'};"></div></div><div class="lb-val">${arr.length}</div></div>`;
-  }).join('')||'<div class="empty" style="padding:10px;"><p>אין נתונים</p></div>';
-  const delays=wt.filter(t=>t.actualTime&&t2m(t.actualTime)>t2m(t.time));
-  const avgDelay=delays.length?Math.round(delays.reduce((s,t)=>s+t2m(t.actualTime)-t2m(t.time),0)/delays.length):0;
-  document.getElementById('delayStats').innerHTML=`<div style="display:flex;gap:10px;">
-    <div style="flex:1;background:var(--ink3);border-radius:8px;padding:10px;text-align:center;"><div style="font-size:20px;font-weight:900;color:var(--red);">${delays.length}</div><div style="font-size:10px;color:var(--txt3);">מעוכבות</div></div>
-    <div style="flex:1;background:var(--ink3);border-radius:8px;padding:10px;text-align:center;"><div style="font-size:20px;font-weight:900;color:var(--orange);">${avgDelay}′</div><div style="font-size:10px;color:var(--txt3);">ממוצע עיכוב</div></div>
-  </div>`;
+// ══════ FAB SHEET ══════
+function openFabSheet(){
+  if(!currentUser) return;
+  const role=currentUser.role;
+  const items=[];
+  if(role==='admin'){
+    items.push({icon:'🚐',bg:'rgba(245,158,11,.15)',col:'var(--amber)',label:'נסיעה חדשה',sub:'צור נסיעה מתוכננת',action:'openAddTrip()'});
+    items.push({icon:'📤',bg:'rgba(59,130,246,.15)',col:'var(--blue2)',label:'בקשת נסיעה',sub:'שלח לאישור',action:"showPage('propose')"});
+    items.push({icon:'🔁',bg:'rgba(168,85,247,.15)',col:'var(--purple)',label:'נסיעה חוזרת',sub:'הוסף נסיעה חוזרת',action:"openRecurringModal&&openRecurringModal()"});
+  } else if(role==='staff'){
+    items.push({icon:'📤',bg:'rgba(59,130,246,.15)',col:'var(--blue2)',label:'בקשת נסיעה',sub:'שלח לאישור מנהל',action:"showPage('propose')"});
+    items.push({icon:'🔁',bg:'rgba(168,85,247,.15)',col:'var(--purple)',label:'נסיעה חוזרת',sub:'הוסף נסיעה חוזרת',action:"openRecurringModal&&openRecurringModal()"});
+  } else {
+    items.push({icon:'📤',bg:'rgba(59,130,246,.15)',col:'var(--blue2)',label:'בקשת נסיעה חדשה',sub:'שלח לאישור מנהל',action:"showPage('propose')"});
+  }
+  const sheet=document.getElementById('fabSheetItems');
+  sheet.innerHTML=items.map(it=>`
+    <div class="fab-action-item" onclick="closeFabSheet();${it.action}">
+      <div class="fab-action-icon" style="background:${it.bg};color:${it.col};">${it.icon}</div>
+      <div><div class="fab-action-label">${it.label}</div><div class="fab-action-sub">${it.sub}</div></div>
+    </div>`).join('');
+  document.getElementById('fabSheet').classList.add('open');
+}
+function closeFabSheet(e){
+  if(e&&e.target!==e.currentTarget) return;
+  document.getElementById('fabSheet').classList.remove('open');
 }
 
-// ══════ ANALYTICS PAGE ══════
-let _anCharts = {};
+// ══════ PERSONAL PAGE ══════
+let _personalSubPage=null;
 
-function _destroyAnChart(id){
-  if(_anCharts[id]){ try{_anCharts[id].destroy();}catch(e){} delete _anCharts[id]; }
+function renderPersonalPage(){
+  if(!currentUser) return;
+  const isAdmin=currentUser.role==='admin';
+  const isStaff=currentUser.role==='staff';
+
+  // Header
+  const hdr=document.getElementById('personalHeader');
+  const roleLabel=isAdmin?'🛡️ מנהל':isStaff?'🎖️ סגל פיקודי':'🚗 נהג';
+  const platoon=currentUser.platoonId&&S.hierarchy[currentUser.platoonId]?S.hierarchy[currentUser.platoonId].name:'';
+  hdr.innerHTML=`
+    <div class="personal-avatar-wrap">
+      ${avatarHtml(currentUser.avatar||'👤',56,'50%')}
+      <div class="personal-role-badge">${isAdmin?'🛡️':isStaff?'🎖️':'🚗'}</div>
+    </div>
+    <div style="flex:1;min-width:0;">
+      <div class="personal-name">${currentUser.name}</div>
+      <div class="personal-role">${roleLabel}</div>
+      ${platoon?`<div class="personal-platoon">📍 ${platoon}</div>`:''}
+    </div>
+    <button onclick="openSelfEdit()" style="background:var(--ink3);border:1px solid var(--border2);border-radius:10px;padding:8px 12px;color:var(--txt);font-size:12px;font-weight:700;cursor:pointer;flex-shrink:0;">✏️ ערוך</button>`;
+
+  // Mini stats
+  const now=new Date();
+  const monthStr=`${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,'0')}`;
+  const myTrips=trips().filter(t=>t.date&&t.date.startsWith(monthStr));
+  const statsEl=document.getElementById('personalMiniStats');
+  statsEl.innerHTML=`
+    <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px;">
+      <div style="background:var(--panel);border:1px solid var(--border);border-radius:12px;padding:12px 8px;text-align:center;">
+        <div style="font-size:22px;font-weight:900;color:var(--amber);">${myTrips.length}</div>
+        <div style="font-size:10px;color:var(--txt3);">נסיעות חודש</div>
+      </div>
+      <div style="background:var(--panel);border:1px solid var(--border);border-radius:12px;padding:12px 8px;text-align:center;">
+        <div style="font-size:22px;font-weight:900;color:var(--green);">${myTrips.filter(t=>t.status==='done').length}</div>
+        <div style="font-size:10px;color:var(--txt3);">בוצעו</div>
+      </div>
+      <div style="background:var(--panel);border:1px solid var(--border);border-radius:12px;padding:12px 8px;text-align:center;">
+        <div style="font-size:22px;font-weight:900;color:var(--blue2);">${Object.values(S.drivers||{}).length}</div>
+        <div style="font-size:10px;color:var(--txt3);">נהגים</div>
+      </div>
+    </div>`;
+
+  // Menu
+  const menuItems=[
+    {icon:'📊',bg:'rgba(59,130,246,.15)',col:'var(--blue2)',label:'נתוני נסיעות',sub:'גרפים, סטטיסטיקות, עומסים',sub2:'',action:"openPersonalSub('analytics')"},
+    {icon:'🔔',bg:'rgba(245,158,11,.15)',col:'var(--amber)',label:'התראות',sub:'הגדרות התראות והשתקות',action:"openPersonalSub('notifs')"},
+    {icon:'⚙️',bg:'rgba(20,184,166,.15)',col:'var(--teal)',label:'הגדרות',sub:'מצב כהה, אבטחה, ייצוא',action:"openPersonalSub('settings')"},
+  ];
+  if(isAdmin||isStaff){
+    menuItems.push({icon:'🛠️',bg:'rgba(168,85,247,.15)',col:'var(--purple)',label:'ניהול מערכת',sub:'משתמשים, נהגים, רכבים, פלגות',action:"openPersonalSub('admin')"});
+  }
+  const card=document.getElementById('personalMenuCard');
+  card.innerHTML=menuItems.map(it=>`
+    <div class="personal-section-btn" onclick="${it.action}">
+      <div class="psb-icon" style="background:${it.bg};color:${it.col};">${it.icon}</div>
+      <div class="psb-body">
+        <div class="psb-label">${it.label}</div>
+        <div class="psb-sub">${it.sub}</div>
+      </div>
+      <div class="psb-chevron">›</div>
+    </div>`).join('');
 }
 
-function _anGetFilters(){
-  const month  = document.getElementById('anFilterMonth')?.value  || '';
-  const platoon= document.getElementById('anFilterPlatoon')?.value|| '';
-  const driverId=document.getElementById('anFilterDriver')?.value || '';
-  const vehicleId=document.getElementById('anFilterVehicle')?.value||'';
-  const status = document.getElementById('anFilterStatus')?.value || '';
-  return {month, platoon, driverId, vehicleId, status};
+function openPersonalSub(name){
+  _personalSubPage=name;
+  document.getElementById('personalMenu').style.display='none';
+  document.getElementById('personalSubScreen').style.display='block';
+  const titles={analytics:'📊 נתוני נסיעות',notifs:'🔔 התראות',settings:'⚙️ הגדרות',admin:'🛠️ ניהול מערכת'};
+  document.getElementById('personalSubTitle').textContent=titles[name]||'';
+  renderPersonalSubContent(name);
 }
 
-function _anInitFilters(){
-  // Month selector — last 12 months
-  const sel = document.getElementById('anFilterMonth');
-  if(!sel) return;
-  const now = new Date();
-  sel.innerHTML = '';
-  for(let i=0;i<12;i++){
-    const d = new Date(now.getFullYear(), now.getMonth()-i, 1);
-    const val = `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}`;
-    const label = d.toLocaleDateString('he-IL',{month:'long',year:'numeric'});
-    const opt = document.createElement('option');
-    opt.value=val; opt.textContent=label;
-    if(i===0) opt.selected=true;
-    sel.appendChild(opt);
-  }
-  // Drivers
-  const dSel=document.getElementById('anFilterDriver');
-  if(dSel){
-    dSel.innerHTML='<option value="">כל הנהגים</option>';
-    drivers().forEach(d=>{ const o=document.createElement('option'); o.value=d.id; o.textContent=d.name; dSel.appendChild(o); });
-  }
-  // Vehicles
-  const vSel=document.getElementById('anFilterVehicle');
-  if(vSel){
-    vSel.innerHTML='<option value="">כל הרכבים</option>';
-    vehicles().forEach(v=>{ const o=document.createElement('option'); o.value=v.id; o.textContent=v.name||v.plate||v.id; vSel.appendChild(o); });
-  }
-  // Platoons
-  const pSel=document.getElementById('anFilterPlatoon');
-  if(pSel){
-    pSel.innerHTML='<option value="">כל הפלגות</option>';
-    Object.values(S.hierarchy||{}).forEach(p=>{ const o=document.createElement('option'); o.value=p.id; o.textContent=p.name; pSel.appendChild(o); });
-  }
+function closePersonalSub(){
+  _personalSubPage=null;
+  const sub=document.getElementById('personalSubScreen');
+  const menu=document.getElementById('personalMenu');
+  if(sub) sub.style.display='none';
+  if(menu) menu.style.display='block';
 }
 
-function _anFilterTrips(f){
-  return trips().filter(t=>{
-    if(f.month && !t.date?.startsWith(f.month)) return false;
-    if(f.driverId && t.driverId!==f.driverId) return false;
-    if(f.vehicleId && t.vehicleId!==f.vehicleId) return false;
-    if(f.status && t.status!==f.status) return false;
-    if(f.platoon){
-      // find drivers in platoon
-      const platoonNodes=Object.values((S.hierarchy[f.platoon]||{}).nodes||{});
-      const platoonUserIds=new Set(platoonNodes.map(n=>n.userId).filter(Boolean));
-      const drvInPlatoon=drivers().filter(d=>platoonUserIds.has(d.linkedUserId)||platoonUserIds.has(d.id));
-      const drvIds=new Set(drvInPlatoon.map(d=>d.id));
-      if(!drvIds.has(t.driverId)) return false;
+function renderPersonalSubContent(name){
+  const cont=document.getElementById('personalSubContent');
+  if(!cont) return;
+  if(name==='analytics'){
+    // Reuse analytics page inline
+    cont.innerHTML=`
+      <div style="padding:10px 12px 0;">
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:8px;">
+          <select id="panFilterMonth" onchange="renderPersonalAnalytics()" style="padding:9px 11px;border-radius:8px;background:var(--ink3);border:1px solid var(--border2);color:var(--txt);font-size:13px;outline:none;"></select>
+          <select id="panFilterStatus" onchange="renderPersonalAnalytics()" style="padding:9px 11px;border-radius:8px;background:var(--ink3);border:1px solid var(--border2);color:var(--txt);font-size:13px;outline:none;"><option value="">כל הסטטוסים</option><option value="done">בוצע</option><option value="pending">ממתין</option><option value="moving">בדרך</option><option value="cancelled">בוטל</option></select>
+        </div>
+      </div>
+      <div id="panKpi" style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px;padding:0 12px 8px;"></div>
+      <div id="panKpi2" style="display:grid;grid-template-columns:repeat(2,1fr);gap:8px;padding:0 12px 8px;"></div>
+      <div style="padding:0 12px 8px;">
+        <div class="card"><div class="card-head"><h3>📅 פעילות יומית</h3></div>
+          <div class="card-body" style="padding:8px;"><canvas id="panDailyChart" height="150"></canvas></div></div>
+      </div>
+      <div style="padding:0 12px 8px;">
+        <div class="card"><div class="card-head"><h3>📆 עומס לפי ימי שבוע</h3></div>
+          <div class="card-body" style="padding:8px;"><canvas id="panWeeklyChart" height="130"></canvas></div></div>
+      </div>
+      <div style="padding:0 12px 8px;">
+        <div class="card"><div class="card-head"><h3>🚌 TOP רכבים</h3></div>
+          <div class="card-body" style="padding:8px;"><canvas id="panVehicleChart" height="140"></canvas></div></div>
+      </div>
+      <div style="padding:0 12px 8px;">
+        <div class="card"><div class="card-head"><h3>👤 TOP נהגים</h3></div>
+          <div class="card-body" style="padding:8px;"><canvas id="panDriverChart" height="140"></canvas></div></div>
+      </div>`;
+    // Init month selector
+    const sel=document.getElementById('panFilterMonth');
+    const now=new Date();
+    for(let i=0;i<12;i++){
+      const d=new Date(now.getFullYear(),now.getMonth()-i,1);
+      const val=`${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}`;
+      const o=document.createElement('option');
+      o.value=val;o.textContent=d.toLocaleDateString('he-IL',{month:'long',year:'numeric'});
+      if(i===0) o.selected=true;
+      sel.appendChild(o);
     }
+    renderPersonalAnalytics();
+  } else if(name==='notifs'){
+    loadNotifSettings();
+    cont.innerHTML='<div style="padding:12px;"><div class="card" id="panNotifCard"></div></div>';
+    requestAnimationFrame(()=>renderNotifSettings('panNotifCard'));
+  } else if(name==='settings'){
+    cont.innerHTML=`
+      <div style="padding:12px;">
+        <div class="card" style="margin-bottom:12px;">
+          <div class="personal-section-btn" onclick="toggleTheme()">
+            <div class="psb-icon" style="background:rgba(245,158,11,.1);font-size:22px;">${lightMode?'☀️':'🌙'}</div>
+            <div class="psb-body"><div class="psb-label">מצב תצוגה</div><div class="psb-sub">${lightMode?'בהיר':'כהה'} — לחץ להחלפה</div></div>
+          </div>
+          <div class="personal-section-btn" onclick="openSelfEdit()">
+            <div class="psb-icon" style="background:rgba(59,130,246,.1);font-size:22px;">✏️</div>
+            <div class="psb-body"><div class="psb-label">עריכת פרופיל</div><div class="psb-sub">שם, טלפון, מייל, תמונה</div></div>
+          </div>
+        </div>
+        ${currentUser.role==='admin'?`
+        <div class="card" style="margin-bottom:12px;">
+          <div class="card-head"><h3>📤 ייצוא נתונים</h3></div>
+          <div class="card-body">
+            <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;margin-bottom:8px;">
+              <button class="btn btn-ghost" style="font-size:11px;padding:10px 4px;" onclick="openExportModal('trips')">🚐<br>נסיעות</button>
+              <button class="btn btn-ghost" style="font-size:11px;padding:10px 4px;" onclick="openExportModal('drivers')">👤<br>נהגים</button>
+              <button class="btn btn-ghost" style="font-size:11px;padding:10px 4px;" onclick="openExportModal('vehicles')">🚌<br>רכבים</button>
+            </div>
+            <button class="btn btn-ghost btn-block" onclick="exportData()">📦 ייצוא JSON מלא</button>
+          </div>
+        </div>`:''}
+        <div class="card" style="margin-bottom:12px;">
+          <div class="personal-section-btn" onclick="doLogout()" style="color:var(--red);">
+            <div class="psb-icon" style="background:rgba(239,68,68,.1);font-size:22px;">🚪</div>
+            <div class="psb-body"><div class="psb-label" style="color:var(--red);">יציאה מהמערכת</div><div class="psb-sub">התנתקות מהחשבון</div></div>
+          </div>
+        </div>
+        <div class="version-card" style="margin:0 0 12px;">
+          <div><div class="version-label">נסיעות Live</div><div class="version-num" id="personalVersionBadge">טוען...</div></div>
+          <div style="text-align:left;"><div class="version-label">חיבור</div><div class="version-sub" id="personalFbStatus">—</div></div>
+        </div>
+      </div>`;
+    // Sync version badge
+    const vb=document.getElementById('personalVersionBadge');
+    if(vb) vb.textContent='גרסה '+APP_VERSION+' · '+APP_BUILD;
+    const fs=document.getElementById('personalFbStatus');
+    if(fs) fs.textContent=document.getElementById('appFbStatus')?.textContent||'—';
+  } else if(name==='admin'){
+    const isAdmin=currentUser.role==='admin';
+    const isStaff=currentUser.role==='staff';
+    cont.innerHTML=`
+      <div style="padding:12px;">
+        ${isAdmin?`
+        <div class="sec-title">ניהול משתמשים</div>
+        <div class="card" style="margin-bottom:12px;" id="panUsersCard"></div>
+        <div style="display:flex;gap:8px;margin-bottom:16px;">
+          <button class="btn btn-ghost" style="flex:1;" onclick="openAddUser()">+ משתמש</button>
+          <button class="btn btn-ghost" style="flex:1;color:var(--purple);" onclick="openAddGuest()">👁️ גישה זמנית</button>
+        </div>
+        <div class="sec-title">👁️ משתמשים זמניים</div>
+        <div class="card" style="margin-bottom:12px;" id="panGuestsCard"></div>
+        `:''}
+        <div class="sec-title">נהגים</div>
+        <div class="card" style="margin-bottom:12px;" id="panDriversCard"></div>
+        ${isAdmin?`<button class="btn btn-ghost btn-block" style="margin-bottom:16px;" onclick="openModal('driverModal')">+ הוסף נהג</button>`:''}
+        <div class="sec-title">רכבים</div>
+        <div class="card" style="margin-bottom:12px;" id="panVehiclesCard"></div>
+        ${isAdmin?`<button class="btn btn-ghost btn-block" style="margin-bottom:16px;" onclick="openModal('vehicleModal')">+ הוסף רכב</button>`:''}
+        ${isAdmin?`
+        <div class="sec-title">🏷️ תגיות</div>
+        <div class="card" style="margin-bottom:8px;" id="panTagCard"></div>
+        <div style="display:flex;gap:8px;margin-bottom:16px;">
+          <input type="text" id="panNewTagName" placeholder="שם תג..." style="flex:1;padding:9px 12px;border-radius:8px;background:var(--ink3);border:1px solid var(--border2);color:var(--txt);font-size:13px;outline:none;">
+          <input type="color" id="panNewTagColor" value="#3b82f6" style="width:40px;height:40px;border:none;border-radius:8px;background:transparent;cursor:pointer;">
+          <button class="btn btn-amber" onclick="document.getElementById('newTagName').value=document.getElementById('panNewTagName').value;document.getElementById('newTagColor').value=document.getElementById('panNewTagColor').value;createTag()">＋</button>
+        </div>
+        `:''}
+        <div class="sec-title">🌳 פלגות</div>
+        <div class="card" style="margin-bottom:8px;" id="panHierCard"></div>
+        ${isAdmin?`<button class="btn btn-ghost btn-block" style="margin-bottom:16px;" onclick="openHierarchyManager()">⚙️ נהל היררכיה</button>`:''}
+        ${isAdmin?`
+        <div class="sec-title">🔔 בקשות הרשמה</div>
+        <div id="panPendingReg" style="padding:0 0 16px;"></div>
+        `:''}
+      </div>`;
+    renderPersonalAdminContent();
+  }
+}
+
+let _panCharts={};
+function renderPersonalAnalytics(){
+  const month=document.getElementById('panFilterMonth')?.value||'';
+  const statusF=document.getElementById('panFilterStatus')?.value||'';
+  let ft=trips().filter(t=>{
+    if(month&&!t.date?.startsWith(month)) return false;
+    if(statusF&&t.status!==statusF) return false;
     return true;
   });
-}
-
-function renderAnalyticsPage(){
-  if(currentPage!=='analytics') return;
-  _anInitFilters();
-  const f=_anGetFilters();
-  const ft=_anFilterTrips(f);
-
-  // ── KPI strip 1 ──
   const total=ft.length;
   const done=ft.filter(t=>t.status==='done').length;
   const cancelled=ft.filter(t=>t.status==='cancelled').length;
-  const active=ft.filter(t=>t.status==='moving'||t.status==='pending').length;
-  const avgPerDay = (()=>{
-    if(!f.month) return 0;
-    const [yr,mo]=f.month.split('-').map(Number);
-    const days=new Date(yr,mo,0).getDate();
-    return (total/days).toFixed(1);
-  })();
-  const kpi1=[
-    {icon:'🚐',val:total,   label:'סה"כ נסיעות', col:'var(--amber)'},
-    {icon:'✅',val:done,    label:'בוצעו',        col:'var(--green)'},
-    {icon:'❌',val:cancelled,label:'בוטלו',       col:'var(--red)'},
-  ];
-  document.getElementById('anKpiStrip').innerHTML=kpi1.map(k=>`
-    <div style="background:var(--ink3);border-radius:12px;padding:12px 8px;text-align:center;border:1px solid var(--border);">
-      <div style="font-size:20px;">${k.icon}</div>
-      <div style="font-size:22px;font-weight:900;color:${k.col};line-height:1.2;">${k.val}</div>
-      <div style="font-size:10px;color:var(--txt3);font-weight:700;margin-top:2px;">${k.label}</div>
-    </div>`).join('');
-
-  // ── KPI strip 2 ──
-  // top driver
-  const byDrv={};
-  ft.forEach(t=>{ if(t.driverId){ byDrv[t.driverId]=(byDrv[t.driverId]||0)+1; } });
-  const topDrvId=Object.entries(byDrv).sort((a,b)=>b[1]-a[1])[0];
-  const topDrv=topDrvId?gd(topDrvId[0]):null;
-  // top vehicle
-  const byVeh={};
-  ft.forEach(t=>{ if(t.vehicleId){ byVeh[t.vehicleId]=(byVeh[t.vehicleId]||0)+1; } });
-  const topVehId=Object.entries(byVeh).sort((a,b)=>b[1]-a[1])[0];
-  const topVeh=topVehId?gv(topVehId[0]):null;
-  document.getElementById('anKpiStrip2').innerHTML=`
-    <div style="background:var(--ink3);border-radius:12px;padding:12px;border:1px solid var(--border);display:flex;align-items:center;gap:10px;">
-      <div style="font-size:24px;">🏃</div>
-      <div style="min-width:0;"><div style="font-size:10px;color:var(--txt3);font-weight:700;">נהג מוביל</div>
-        <div style="font-size:13px;font-weight:900;color:var(--blue);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${topDrv?topDrv.name:'—'}</div>
-        <div style="font-size:11px;color:var(--txt2);">${topDrvId?topDrvId[1]+' נסיעות':'—'}</div></div>
+  document.getElementById('panKpi').innerHTML=[
+    {icon:'🚐',val:total,label:'סה"כ',col:'var(--amber)'},
+    {icon:'✅',val:done,label:'בוצעו',col:'var(--green)'},
+    {icon:'❌',val:cancelled,label:'בוטלו',col:'var(--red)'},
+  ].map(k=>`<div style="background:var(--ink3);border-radius:12px;padding:12px 8px;text-align:center;border:1px solid var(--border);">
+    <div style="font-size:18px;">${k.icon}</div>
+    <div style="font-size:20px;font-weight:900;color:${k.col};">${k.val}</div>
+    <div style="font-size:10px;color:var(--txt3);">${k.label}</div>
+  </div>`).join('');
+  const byDrv={};ft.forEach(t=>{if(t.driverId)byDrv[t.driverId]=(byDrv[t.driverId]||0)+1;});
+  const topD=Object.entries(byDrv).sort((a,b)=>b[1]-a[1])[0];
+  const byVeh={};ft.forEach(t=>{if(t.vehicleId)byVeh[t.vehicleId]=(byVeh[t.vehicleId]||0)+1;});
+  const topV=Object.entries(byVeh).sort((a,b)=>b[1]-a[1])[0];
+  document.getElementById('panKpi2').innerHTML=`
+    <div style="background:var(--ink3);border-radius:12px;padding:12px;border:1px solid var(--border);display:flex;gap:8px;align-items:center;">
+      <div style="font-size:20px;">🏃</div>
+      <div style="min-width:0;"><div style="font-size:10px;color:var(--txt3);">נהג מוביל</div>
+        <div style="font-size:12px;font-weight:900;color:var(--blue2);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${topD?gd(topD[0])?.name||'?':'—'}</div>
+        <div style="font-size:10px;color:var(--txt2);">${topD?topD[1]+' נסיעות':''}</div></div>
     </div>
-    <div style="background:var(--ink3);border-radius:12px;padding:12px;border:1px solid var(--border);display:flex;align-items:center;gap:10px;">
-      <div style="font-size:24px;">🚌</div>
-      <div style="min-width:0;"><div style="font-size:10px;color:var(--txt3);font-weight:700;">רכב פעיל</div>
-        <div style="font-size:13px;font-weight:900;color:var(--teal);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${topVeh?(topVeh.name||topVeh.plate||'—'):'—'}</div>
-        <div style="font-size:11px;color:var(--txt2);">${topVehId?topVehId[1]+' נסיעות':'—'}</div></div>
+    <div style="background:var(--ink3);border-radius:12px;padding:12px;border:1px solid var(--border);display:flex;gap:8px;align-items:center;">
+      <div style="font-size:20px;">🚌</div>
+      <div style="min-width:0;"><div style="font-size:10px;color:var(--txt3);">רכב פעיל</div>
+        <div style="font-size:12px;font-weight:900;color:var(--teal);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${topV?(gv(topV[0])?.name||gv(topV[0])?.plate||'?'):'—'}</div>
+        <div style="font-size:10px;color:var(--txt2);">${topV?topV[1]+' נסיעות':''}</div></div>
     </div>`;
-
-  // ── Daily chart ──
-  _destroyAnChart('daily');
-  if(f.month){
-    const [yr,mo]=f.month.split('-').map(Number);
-    const daysInMonth=new Date(yr,mo,0).getDate();
-    const labels=[],data=[],colors=[];
-    for(let d=1;d<=daysInMonth;d++){
-      const dateStr=`${yr}-${String(mo).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
-      const cnt=ft.filter(t=>t.date===dateStr).length;
-      labels.push(d);data.push(cnt);
-      colors.push(cnt===0?'rgba(59,130,246,.15)':cnt<3?'rgba(59,130,246,.5)':cnt<6?'rgba(245,158,11,.7)':'rgba(239,68,68,.8)');
+  // Charts
+  ['panDaily','panWeekly','panVehicle','panDriver'].forEach(k=>{ if(_panCharts[k]){try{_panCharts[k].destroy();}catch(e){}delete _panCharts[k];} });
+  if(month){
+    const [yr,mo]=month.split('-').map(Number);
+    const days=new Date(yr,mo,0).getDate();
+    const labels=[],data=[],cols=[];
+    for(let d=1;d<=days;d++){
+      const ds2=`${yr}-${String(mo).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
+      const c=ft.filter(t=>t.date===ds2).length;
+      labels.push(d);data.push(c);
+      cols.push(c===0?'rgba(59,130,246,.15)':c<3?'rgba(59,130,246,.5)':c<6?'rgba(245,158,11,.7)':'rgba(239,68,68,.8)');
     }
-    const ctx=document.getElementById('anDailyChart');
-    if(ctx){
-      _anCharts['daily']=new Chart(ctx,{
-        type:'bar',
-        data:{labels,datasets:[{data,backgroundColor:colors,borderRadius:4,borderSkipped:false}]},
-        options:{
-          responsive:true,maintainAspectRatio:false,
-          plugins:{legend:{display:false},tooltip:{callbacks:{label:c=>`${c.raw} נסיעות`}}},
-          scales:{
-            x:{ticks:{color:'#7a98c0',font:{size:9},maxTicksLimit:16},grid:{display:false}},
-            y:{ticks:{color:'#7a98c0',font:{size:10},stepSize:1},grid:{color:'rgba(255,255,255,.05)'}}
-          }
-        }
-      });
-    }
+    const dc=document.getElementById('panDailyChart');
+    if(dc) _panCharts['panDaily']=new Chart(dc,{type:'bar',data:{labels,datasets:[{data,backgroundColor:cols,borderRadius:3,borderSkipped:false}]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},scales:{x:{ticks:{color:'#7a98c0',font:{size:9},maxTicksLimit:16},grid:{display:false}},y:{ticks:{color:'#7a98c0',font:{size:9},stepSize:1},grid:{color:'rgba(255,255,255,.05)'}}}}});
   }
+  const wc=[0,0,0,0,0,0,0];ft.forEach(t=>{if(t.date){const d=new Date(t.date+'T00:00:00');wc[d.getDay()]++;}});
+  const wCtx=document.getElementById('panWeeklyChart');
+  if(wCtx) _panCharts['panWeekly']=new Chart(wCtx,{type:'bar',data:{labels:DAYS_HE,datasets:[{data:wc,backgroundColor:wc.map(v=>v===0?'rgba(59,130,246,.2)':v<3?'rgba(59,130,246,.55)':v<6?'rgba(245,158,11,.75)':'rgba(239,68,68,.85)'),borderRadius:5,borderSkipped:false}]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},scales:{x:{ticks:{color:'#7a98c0',font:{size:10}},grid:{display:false}},y:{ticks:{color:'#7a98c0',font:{size:9},stepSize:1},grid:{color:'rgba(255,255,255,.05)'}}}}});
+  const vE=Object.entries(byVeh).sort((a,b)=>b[1]-a[1]).slice(0,6);
+  const vCtx=document.getElementById('panVehicleChart');
+  if(vCtx&&vE.length) _panCharts['panVehicle']=new Chart(vCtx,{type:'bar',data:{labels:vE.map(([id])=>{const v=gv(id);return v?(v.name||v.plate||'?'):'?';}),datasets:[{data:vE.map(([,c])=>c),backgroundColor:'rgba(20,184,166,.7)',borderRadius:5,borderSkipped:false}]},options:{indexAxis:'y',responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},scales:{x:{ticks:{color:'#7a98c0',font:{size:9}},grid:{color:'rgba(255,255,255,.05)'}},y:{ticks:{color:'#e2eaf7',font:{size:10}},grid:{display:false}}}}});
+  const dE=Object.entries(byDrv).sort((a,b)=>b[1]-a[1]).slice(0,6);
+  const dCtx=document.getElementById('panDriverChart');
+  if(dCtx&&dE.length) _panCharts['panDriver']=new Chart(dCtx,{type:'bar',data:{labels:dE.map(([id])=>gd(id)?.name||'?'),datasets:[{data:dE.map(([,c])=>c),backgroundColor:'rgba(168,85,247,.7)',borderRadius:5,borderSkipped:false}]},options:{indexAxis:'y',responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},scales:{x:{ticks:{color:'#7a98c0',font:{size:9}},grid:{color:'rgba(255,255,255,.05)'}},y:{ticks:{color:'#e2eaf7',font:{size:10}},grid:{display:false}}}}});
+}
 
-  // ── Weekly load chart ──
-  _destroyAnChart('weekly');
-  const byWeekday=[0,0,0,0,0,0,0];
-  ft.forEach(t=>{ if(t.date){ const d=new Date(t.date+'T00:00:00'); byWeekday[d.getDay()]++; } });
-  const wCtx=document.getElementById('anWeeklyChart');
-  if(wCtx){
-    const wColors=byWeekday.map(v=>v===0?'rgba(59,130,246,.2)':v<3?'rgba(59,130,246,.55)':v<6?'rgba(245,158,11,.75)':'rgba(239,68,68,.85)');
-    _anCharts['weekly']=new Chart(wCtx,{
-      type:'bar',
-      data:{labels:DAYS_HE,datasets:[{data:byWeekday,backgroundColor:wColors,borderRadius:6,borderSkipped:false}]},
-      options:{
-        responsive:true,maintainAspectRatio:false,
-        plugins:{legend:{display:false},tooltip:{callbacks:{label:c=>`${c.raw} נסיעות`}}},
-        scales:{
-          x:{ticks:{color:'#7a98c0',font:{size:11}},grid:{display:false}},
-          y:{ticks:{color:'#7a98c0',font:{size:10},stepSize:1},grid:{color:'rgba(255,255,255,.05)'}}
-        }
-      }
-    });
+function renderPersonalAdminContent(){
+  const isAdmin=currentUser.role==='admin';
+  // Users card
+  const uc=document.getElementById('panUsersCard');
+  if(uc&&isAdmin){
+    const us=Object.values(S.users||{}).filter(u=>u.status!=='pending'&&u.name);
+    uc.innerHTML=us.slice(0,5).map(u=>`<div class="list-item">
+      ${avatarHtml(u.avatar||'👤',32,'50%')}
+      <div class="li-body"><strong>${u.name}</strong><small>${u.role==='admin'?'🛡️ מנהל':u.role==='staff'?'🎖️ סגל':'🚗 נהג'}${u.phone?' · '+u.phone:''}</small></div>
+      <button class="btn btn-ghost btn-sm" onclick="openEditUser('${u.id}')">✏️</button>
+    </div>`).join('')
+    +(us.length>5?`<div style="padding:10px;text-align:center;font-size:12px;color:var(--txt2);">+${us.length-5} נוספים</div>`:'');
   }
-
-  // ── Hour heatmap ──
-  const byHour=Array(24).fill(0);
-  ft.forEach(t=>{ const h=parseInt((t.time||'00:00').split(':')[0]); if(h>=0&&h<24) byHour[h]++; });
-  const maxH=Math.max(1,...byHour);
-  const heatEl=document.getElementById('anHourHeatmap');
-  if(heatEl){
-    const cells=byHour.map((v,h)=>{
-      const pct=v/maxH;
-      const bg=pct===0?'rgba(255,255,255,.04)':pct<.3?'rgba(59,130,246,.3)':pct<.6?'rgba(245,158,11,.5)':'rgba(239,68,68,.75)';
-      return `<div title="${h}:00 — ${v} נסיעות" style="display:flex;flex-direction:column;align-items:center;gap:2px;">
-        <div style="width:100%;height:${Math.max(4,Math.round(pct*40))}px;background:${bg};border-radius:3px;min-height:4px;"></div>
-        <div style="font-size:8px;color:var(--txt3);">${h}</div>
-      </div>`;
-    });
-    heatEl.innerHTML=`<div style="display:grid;grid-template-columns:repeat(24,1fr);gap:2px;align-items:end;">${cells.join('')}</div>`;
+  // Guests
+  const gc=document.getElementById('panGuestsCard');
+  if(gc&&isAdmin){
+    const gs=Object.values(S.users||{}).filter(u=>u.isGuest&&u.name);
+    gc.innerHTML=gs.length?gs.map(u=>`<div class="list-item">
+      <div style="width:32px;height:32px;border-radius:8px;background:rgba(168,85,247,.15);display:flex;align-items:center;justify-content:center;font-size:16px;">👁️</div>
+      <div class="li-body"><strong>${u.name}</strong><small>עד ${u.guestExpiry?new Date(u.guestExpiry).toLocaleDateString('he-IL'):'—'}</small></div>
+      <button class="btn btn-danger btn-sm" onclick="confirmDeleteGuest('${u.id}')">🗑️</button>
+    </div>`).join(''):'<div class="empty" style="padding:12px;"><p>אין משתמשים זמניים</p></div>';
   }
-
-  // ── Vehicle chart ──
-  _destroyAnChart('vehicle');
-  const vEntries=Object.entries(byVeh).sort((a,b)=>b[1]-a[1]).slice(0,8);
-  const vCtx=document.getElementById('anVehicleChart');
-  if(vCtx&&vEntries.length){
-    _anCharts['vehicle']=new Chart(vCtx,{
-      type:'bar',
-      data:{
-        labels:vEntries.map(([id])=>{ const v=gv(id); return v?(v.name||v.plate||'?'):'?'; }),
-        datasets:[{data:vEntries.map(([,c])=>c),backgroundColor:'rgba(20,184,166,.7)',borderRadius:6,borderSkipped:false}]
-      },
-      options:{
-        indexAxis:'y',responsive:true,maintainAspectRatio:false,
-        plugins:{legend:{display:false},tooltip:{callbacks:{label:c=>`${c.raw} נסיעות`}}},
-        scales:{
-          x:{ticks:{color:'#7a98c0',font:{size:10},stepSize:1},grid:{color:'rgba(255,255,255,.05)'}},
-          y:{ticks:{color:'#e2eaf7',font:{size:11,weight:'bold'}},grid:{display:false}}
-        }
-      }
-    });
-  } else if(vCtx){
-    vCtx.parentElement.innerHTML='<div class="empty" style="padding:16px;"><p>אין נתוני רכבים</p></div>';
+  // Drivers
+  const dc=document.getElementById('panDriversCard');
+  if(dc){
+    dc.innerHTML=drivers().slice(0,5).map(d=>`<div class="list-item">
+      ${avatarHtml(d.avatar||'👤',32,'50%')}
+      <div class="li-body"><strong>${d.name}</strong><small>${d.phone||''}</small></div>
+      ${isAdmin?`<button class="btn btn-ghost btn-sm" onclick="openEditDriver('${d.id}')">✏️</button>`:''}
+    </div>`).join('')||'<div class="empty" style="padding:12px;"><p>אין נהגים</p></div>';
   }
-
-  // ── Driver chart ──
-  _destroyAnChart('driver');
-  const dEntries=Object.entries(byDrv).sort((a,b)=>b[1]-a[1]).slice(0,8);
-  const dCtx=document.getElementById('anDriverChart');
-  if(dCtx&&dEntries.length){
-    _anCharts['driver']=new Chart(dCtx,{
-      type:'bar',
-      data:{
-        labels:dEntries.map(([id])=>{ const d=gd(id); return d?d.name:'?'; }),
-        datasets:[{data:dEntries.map(([,c])=>c),backgroundColor:'rgba(168,85,247,.7)',borderRadius:6,borderSkipped:false}]
-      },
-      options:{
-        indexAxis:'y',responsive:true,maintainAspectRatio:false,
-        plugins:{legend:{display:false},tooltip:{callbacks:{label:c=>`${c.raw} נסיעות`}}},
-        scales:{
-          x:{ticks:{color:'#7a98c0',font:{size:10},stepSize:1},grid:{color:'rgba(255,255,255,.05)'}},
-          y:{ticks:{color:'#e2eaf7',font:{size:11,weight:'bold'}},grid:{display:false}}
-        }
-      }
-    });
-  } else if(dCtx){
-    dCtx.parentElement.innerHTML='<div class="empty" style="padding:16px;"><p>אין נתוני נהגים</p></div>';
+  // Vehicles
+  const vc=document.getElementById('panVehiclesCard');
+  if(vc){
+    vc.innerHTML=vehicles().slice(0,5).map(v=>`<div class="list-item">
+      ${avatarHtml(v.icon||'🚌',32,'10px')}
+      <div class="li-body"><strong>${v.name||v.plate||'—'}</strong><small>${v.plate||''} ${v.type||''}</small></div>
+      ${isAdmin?`<button class="btn btn-ghost btn-sm" onclick="openEditVehicle('${v.id}')">✏️</button>`:''}
+    </div>`).join('')||'<div class="empty" style="padding:12px;"><p>אין רכבים</p></div>';
   }
-
-  // ── Platoon activity ──
-  const platoons=Object.values(S.hierarchy||{});
-  const byPlatoon=platoons.map(p=>{
-    const nodes=Object.values(p.nodes||{});
-    const userIds=new Set(nodes.map(n=>n.userId).filter(Boolean));
-    const drvs=drivers().filter(d=>userIds.has(d.linkedUserId)||userIds.has(d.id));
-    const drvIds=new Set(drvs.map(d=>d.id));
-    const cnt=ft.filter(t=>drvIds.has(t.driverId)).length;
-    return {name:p.name,cnt};
-  }).filter(p=>p.cnt>0).sort((a,b)=>b.cnt-a.cnt);
-  const maxP=Math.max(1,...byPlatoon.map(p=>p.cnt));
-  const platEl=document.getElementById('anPlatoonBars');
-  if(platEl){
-    platEl.innerHTML=byPlatoon.length?byPlatoon.map(p=>`
-      <div class="load-bar-row">
-        <div class="lb-label" style="width:70px;font-size:10px;overflow:hidden;white-space:nowrap;text-overflow:ellipsis;">${p.name}</div>
-        <div class="lb-track"><div class="lb-fill" style="width:${Math.round(p.cnt/maxP*100)}%;background:rgba(245,158,11,.7);"></div></div>
-        <div class="lb-val">${p.cnt}</div>
-      </div>`).join('')
-      :'<div class="empty" style="padding:12px;"><p>אין נתונים</p></div>';
+  // Tags
+  const tc=document.getElementById('panTagCard');
+  if(tc&&isAdmin){
+    const tags=Object.values(S.customTags||{});
+    tc.innerHTML=tags.length?`<div class="card-body" style="display:flex;flex-wrap:wrap;gap:6px;">
+      ${tags.map(t=>`<span class="badge" style="background:${t.color}22;color:${t.color};border:1px solid ${t.color}55;">${t.name}</span>`).join('')}
+    </div>`:'<div class="empty" style="padding:12px;"><p>אין תגיות</p></div>';
   }
-
-  // ── Status donut ──
-  _destroyAnChart('status');
-  const sCtx=document.getElementById('anStatusChart');
-  const statusCounts={done,cancelled,pending:ft.filter(t=>t.status==='pending').length,moving:ft.filter(t=>t.status==='moving').length,delayed:ft.filter(t=>t.status==='delayed').length};
-  const sColors={done:'#22c55e',cancelled:'#a855f7',pending:'#f59e0b',moving:'#3b82f6',delayed:'#ef4444'};
-  const sLabels={done:'בוצע',cancelled:'בוטל',pending:'ממתין',moving:'בדרך',delayed:'עיכוב'};
-  const sEntries=Object.entries(statusCounts).filter(([,v])=>v>0);
-  if(sCtx&&sEntries.length){
-    _anCharts['status']=new Chart(sCtx,{
-      type:'doughnut',
-      data:{
-        labels:sEntries.map(([k])=>sLabels[k]),
-        datasets:[{data:sEntries.map(([,v])=>v),backgroundColor:sEntries.map(([k])=>sColors[k]),borderWidth:0,hoverOffset:4}]
-      },
-      options:{responsive:false,cutout:'65%',plugins:{legend:{display:false},tooltip:{callbacks:{label:c=>`${c.label}: ${c.raw}`}}}}
-    });
+  // Hierarchy
+  const hc=document.getElementById('panHierCard');
+  if(hc){
+    const platoons=Object.values(S.hierarchy||{});
+    hc.innerHTML=platoons.length?platoons.map(p=>`<div class="list-item" onclick="showPage('hierarchy');enterTree('${p.id}')">
+      <div style="width:32px;height:32px;border-radius:8px;background:rgba(245,158,11,.15);display:flex;align-items:center;justify-content:center;font-size:16px;">🌳</div>
+      <div class="li-body"><strong>${p.name}</strong><small>${Object.keys(p.nodes||{}).length} אנשים</small></div>
+      <div style="color:var(--txt3);">›</div>
+    </div>`).join(''):'<div class="empty" style="padding:12px;"><p>אין פלגות</p></div>';
   }
-  const legEl=document.getElementById('anStatusLegend');
-  if(legEl){
-    legEl.innerHTML=sEntries.map(([k,v])=>`
-      <div style="display:flex;align-items:center;gap:6px;margin-bottom:5px;">
-        <div style="width:10px;height:10px;border-radius:50%;background:${sColors[k]};flex-shrink:0;"></div>
-        <div style="font-size:12px;color:var(--txt2);">${sLabels[k]}</div>
-        <div style="font-size:12px;font-weight:900;color:var(--txt);margin-right:auto;">${v}</div>
-      </div>`).join('');
+  // Pending registrations
+  const pr=document.getElementById('panPendingReg');
+  if(pr&&isAdmin){
+    const pending=Object.values(S.users||{}).filter(u=>u.status==='pending');
+    pr.innerHTML=pending.length?pending.map(u=>`<div class="list-item">
+      ${avatarHtml(u.avatar||'👤',32,'50%')}
+      <div class="li-body"><strong>${u.name}</strong><small>${u.phone||u.email||''}</small></div>
+      <button class="btn btn-green btn-sm" onclick="approveUser('${u.id}')">✓</button>
+      <button class="btn btn-danger btn-sm" onclick="rejectUser('${u.id}')">✗</button>
+    </div>`).join(''):'<div style="padding:10px 12px;font-size:12px;color:var(--txt2);">אין בקשות ממתינות</div>';
   }
 }
 
