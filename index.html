@@ -1644,39 +1644,35 @@ function _enableOfflineSync(){
 }
 
 // ══════ APP VERSION ══════
-const APP_VERSION = '33';
-const APP_BUILD   = '2026-04-24';
+const APP_VERSION = 'beta 35';
+const APP_BUILD   = '2026-04-27';
 
 function publishVersion(){
   r('app/version').transaction(cur=>{
-    if(!cur || Number(APP_VERSION) >= Number((cur||{}).version||0)){
+    const curV=parseFloat((cur||{}).version||0);
+    const myV=parseFloat(APP_VERSION)||0;
+    if(!cur || myV >= curV){
       return { version: APP_VERSION, build: APP_BUILD, publishedAt: Date.now() };
     }
   });
 }
 
 function startVersionListener(){
-  // Firebase status dot in settings
   db.ref('.info/connected').on('value', snap=>{
     const el = document.getElementById('appFbStatus');
     if(el) el.textContent = snap.val() ? '🟢 מחובר' : '🔴 לא מחובר';
   });
-  // Version badge + update banner
   r('app/version').on('value', snap=>{
     const v = snap.val();
     const badge = document.getElementById('appVersionBadge');
-    if(badge) badge.textContent = 'גרסה ' + APP_VERSION + ' · ' + APP_BUILD;
+    if(badge) badge.textContent = APP_VERSION + ' · ' + APP_BUILD;
+    const pb = document.getElementById('personalVersionBadge');
+    if(pb) pb.textContent = APP_VERSION + ' · ' + APP_BUILD;
     if(!v) return;
     const banner = document.getElementById('versionBanner');
     if(banner){
-      const isNewer = Number(v.version) > Number(APP_VERSION);
+      const isNewer = !String(APP_VERSION).startsWith('beta') && parseFloat(v.version) > parseFloat(APP_VERSION);
       banner.style.display = isNewer ? 'flex' : 'none';
-      const topH = document.getElementById('topbar')?.offsetHeight || 56;
-      banner.style.top = topH + 'px';
-      if(isNewer){
-        const newEl = banner.querySelector('.vb-new');
-        if(newEl) newEl.textContent = 'v' + v.version;
-      }
     }
   });
 }
@@ -1895,9 +1891,11 @@ function showScreen(id){
     if(!el) return;
     el.style.display = (s===id) ? 'block' : 'none';
   });
-  // Ensure loginScreen itself is visible
-  const ls=document.getElementById('loginScreen');
-  if(ls) ls.classList.remove('hidden');
+  // Only show loginScreen if user is NOT logged in
+  if(!currentUser){
+    const ls=document.getElementById('loginScreen');
+    if(ls) ls.classList.remove('hidden');
+  }
 }
 
 async function doPasswordLogin(){
@@ -2064,10 +2062,9 @@ async function doResetPassword(){
 }
 
 // ══════ SUPER ADMIN ══════
-// Super-admin hash (SHA-256 of passphrase — not stored as plaintext)
-const _SA_HASH='e3d6b5f6b4a3e2c1d0f9e8a7b6c5d4e3f2a1b0c9d8e7f6a5b4c3d2e1f0a9b8c7'; // replace with real hash
 function showSuperAdmin(){showScreen('superAdminScreen');setTimeout(()=>document.getElementById('superPass')?.focus(),100);}
 function hideSuperAdmin(){document.getElementById('superPass').value='';showScreen('loginMain');}
+
 async function doSuperAdminLogin(){
   const passEl=document.getElementById('superPass');
   const pass=passEl?passEl.value:'';
@@ -2075,45 +2072,41 @@ async function doSuperAdminLogin(){
 
   const btn=document.querySelector('#superAdminScreen .login-btn');
   if(btn){btn.textContent='מתחבר...';btn.disabled=true;}
+  const resetBtn=()=>{ if(btn){btn.textContent='כניסה →';btn.disabled=false;} };
 
   let hashed;
   try{ hashed=await hashPass(pass); }
-  catch(e){
-    if(passEl) passEl.value='';
-    if(btn){btn.textContent='כניסה →';btn.disabled=false;}
-    toast('שגיאת עיבוד ❌'); return;
-  }
-  if(passEl) passEl.value=''; // clear after hash
+  catch(e){ resetBtn(); toast('שגיאת עיבוד ❌'); return; }
 
-  if(!db){
-    // Firebase not ready — compare against local fallback hash
-    if(hashed!==_SA_HASH){
-      if(btn){btn.textContent='כניסה →';btn.disabled=false;}
-      toast('סיסמה שגויה ❌'); return;
-    }
-    currentUser={id:'superadmin',name:'מנהל ראשי',role:'admin',phone:'',email:'',alsoDriver:false,avatar:'🛡️'};
-    auditLog('super_admin_login',{});
-    if(btn){btn.textContent='כניסה →';btn.disabled=false;}
-    finishLogin(); return;
-  }
+  // Clear field only after hashing is complete
+  if(passEl) passEl.value='';
 
-  r('config/superAdminHash').once('value').then(snap=>{
-    if(btn){btn.textContent='כניסה →';btn.disabled=false;}
-    const storedHash=snap.val()||_SA_HASH;
-    if(hashed!==storedHash){toast('סיסמה שגויה ❌');auditLog('super_admin_fail',{});return;}
-    currentUser={id:'superadmin',name:'מנהל ראשי',role:'admin',phone:'',email:'',alsoDriver:false,avatar:'🛡️'};
-    auditLog('super_admin_login',{});
+  const proceed=()=>{
+    const sa={id:'superadmin',name:'מנהל ראשי',role:'admin',phone:'',email:'',alsoDriver:false,avatar:'🛡️',isSuperAdmin:true};
+    currentUser=sa;
+    try{ localStorage.setItem('savedUser',JSON.stringify(sa)); localStorage.setItem('rememberMe','true'); }catch(e){}
+    try{ auditLog('super_admin_login',{}); }catch(e){}
+    resetBtn();
     finishLogin();
-  }).catch(e=>{
-    if(btn){btn.textContent='כניסה →';btn.disabled=false;}
-    // Fallback to local hash if Firebase unreachable
-    if(hashed===_SA_HASH){
-      currentUser={id:'superadmin',name:'מנהל ראשי',role:'admin',phone:'',email:'',alsoDriver:false,avatar:'🛡️'};
-      finishLogin();
+  };
+  const fail=()=>{ resetBtn(); toast('סיסמה שגויה ❌'); try{auditLog('super_admin_fail',{});}catch(e){} };
+
+  if(!db){ if(hashed===_SA_HASH) proceed(); else fail(); return; }
+
+  try{
+    const snap=await r('config/superAdminHash').once('value');
+    const storedHash=snap.val();
+    if(storedHash){
+      if(hashed===storedHash) proceed(); else fail();
     } else {
-      toast('שגיאת חיבור — נסה שוב ❌');
+      // First time — store hash and allow entry
+      await r('config/superAdminHash').set(hashed);
+      proceed();
     }
-  });
+  }catch(e){
+    if(_SA_HASH&&_SA_HASH.length===64&&hashed===_SA_HASH) proceed();
+    else{ resetBtn(); toast('אין חיבור לשרת — נסה שוב ❌'); }
+  }
 }
 
 // ══════ REGISTER ══════
@@ -2187,11 +2180,10 @@ function finishLogin(){
 }
 
 function doLogout(){
-  if(currentUser) r(`online/${currentUser.id}`).remove();
+  try{ if(currentUser&&currentUser.id&&currentUser.id!=='superadmin') r(`online/${currentUser.id}`).remove(); }catch(e){}
   clearInterval(window._sessionCheck);
   window._sessionCheck=null;
   currentUser=null; loginUserData=null;
-  // ── נקה זכירת התחברות ──
   localStorage.removeItem('rememberMe');
   localStorage.removeItem('savedUser');
   const li=document.getElementById('loginIdent'),lp=document.getElementById('loginPass');
@@ -2199,7 +2191,8 @@ function doLogout(){
   const rmCb=document.getElementById('rememberMeCheck');
   if(rmCb) rmCb.checked=false;
   showScreen('loginMain');
-  document.getElementById('loginScreen').classList.remove('hidden');
+  const ls=document.getElementById('loginScreen');
+  if(ls) ls.classList.remove('hidden');
 }
 
 // ══════ FIREBASE LISTENERS ══════
@@ -2255,9 +2248,15 @@ function tryAutoLogin(){
     const saved = JSON.parse(raw);
     if(!saved||!saved.id||!saved.name) return;
 
+    // Super admin session restore — skip Firebase lookup
+    if(saved.id === 'superadmin' && saved.isSuperAdmin){
+      currentUser = saved;
+      finishLogin();
+      return;
+    }
+
     // Try Firebase first (works online + from cache when offline)
     const timeout = setTimeout(()=>{
-      // Firebase took too long — login from localStorage cache
       if(!currentUser){
         currentUser = saved;
         finishLogin();
@@ -2266,7 +2265,7 @@ function tryAutoLogin(){
 
     r(`users/${saved.id}`).once('value').then(snap=>{
       clearTimeout(timeout);
-      if(currentUser) return; // already logged in via timeout
+      if(currentUser) return;
       const u = snap.val();
       if(!u || u.status==='pending'){ doLogout(); return; }
       if(u.isGuest && u.guestExpiry && Date.now()>u.guestExpiry){ doLogout(); return; }
@@ -2278,7 +2277,6 @@ function tryAutoLogin(){
       finishLogin();
     }).catch(()=>{
       clearTimeout(timeout);
-      // Firebase error — login from cache
       if(!currentUser){
         currentUser = saved;
         finishLogin();
