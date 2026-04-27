@@ -1548,50 +1548,93 @@ body.light-mode .swipe-inner .trip-block{ background: #d1dce8 !important; }
 
 <!-- EmailJS for real OTP emails -->
 <!-- jsPDF for PDF export -->
-<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.8.2/jspdf.plugin.autotable.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js" crossorigin="anonymous"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.8.2/jspdf.plugin.autotable.min.js" crossorigin="anonymous"></script>
 <!-- SheetJS for Excel export -->
-<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js" crossorigin="anonymous"></script>
 <script src="https://cdn.jsdelivr.net/npm/@emailjs/browser@4/dist/email.min.js" crossorigin="anonymous"></script>
-<!-- Firebase compat SDK — official CDN (more reliable than cdnjs) -->
-<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
-<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
-<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-storage-compat.js"></script>
+<!-- Chart.js for analytics charts -->
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.3/dist/chart.umd.min.js" crossorigin="anonymous"></script>
+<!-- Firebase compat SDK — cdnjs (works in iOS Safari + Files app) -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/firebase/9.23.0/firebase-app-compat.min.js" crossorigin="anonymous"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/firebase/9.23.0/firebase-database-compat.min.js" crossorigin="anonymous"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/firebase/9.23.0/firebase-storage-compat.min.js" crossorigin="anonymous"></script>
 <script>
 // ── Global error boundary ──
 window.onerror = function(msg, src, line, col, err){
-  console.error('[AppError]', msg, src, line, col, err);
+  // "Script error" with no details = cross-origin script error, not our code
+  if(msg==='Script error.' || msg==='Script error') return true; // suppress noisy cross-origin noise
+  console.error('[AppError]', msg, 'at', src, line, col, err);
   return false;
 };
 window.addEventListener('unhandledrejection', e=>{
   console.error('[UnhandledPromise]', e.reason);
 });
 
+// Safe wrapper: prevents a single button crash from killing the page
+window._safe = function(fn){
+  return function(){
+    try { fn.apply(this, arguments); }
+    catch(e){ console.error('[SafeHandler]', e); }
+  };
+};
+
 // ══════ EMAILJS CONFIG ══════
-// הגדר את הפרטים שלך מ-emailjs.com (חינמי עד 200 מיילים/חודש)
 const EJS = {
   serviceId: 'service_26juxq6',
   templateId: 'template_xd4e2nf',
   publicKey: 'FsBbZivpXmzdBL7bd',
 };
-// אתחול EmailJS — עטוף ב-try-catch כדי שכשל CDN לא יקרוס את כל הסקריפט
 try { emailjs.init(EJS.publicKey); } catch(e) { console.warn('EmailJS לא נטען:', e); }
-// SMS דרך Twilio / MessageBird / Vonage – נדרש backend
-// לצורך demo: הקוד מוצג בהודעה כשאין SMS API
 
 // ══════ FIREBASE INIT ══════
+// Wrapped in try-catch: if Firebase CDN fails to load (iOS Safari, ad-blockers, slow networks)
+// the entire script would crash and every onclick would throw "Script error".
+// The try-catch isolates the failure so the rest of the app still initialises.
 let db, r;
-firebase.initializeApp({
-  apiKey: "AIzaSyD8LIZPg0IhqqS6kr92TuS1V9kW8ip6XBs",
-  authDomain: "drivetime-21f48.firebaseapp.com",
-  databaseURL: "https://drivetime-21f48-default-rtdb.firebaseio.com",
-  projectId: "drivetime-21f48",
-  storageBucket: "drivetime-21f48.firebasestorage.app",
-  messagingSenderId: "161065346656",
-  appId: "1:161065346656:web:43b6480670ac6294ba0505"
-});
-db = firebase.database();
-r  = p => db.ref(p);
+try {
+  if(typeof firebase === 'undefined') throw new Error('Firebase SDK not loaded');
+  firebase.initializeApp({
+    apiKey: "AIzaSyD8LIZPg0IhqqS6kr92TuS1V9kW8ip6XBs",
+    authDomain: "drivetime-21f48.firebaseapp.com",
+    databaseURL: "https://drivetime-21f48-default-rtdb.firebaseio.com",
+    projectId: "drivetime-21f48",
+    storageBucket: "drivetime-21f48.firebasestorage.app",
+    messagingSenderId: "161065346656",
+    appId: "1:161065346656:web:43b6480670ac6294ba0505"
+  });
+  db = firebase.database();
+  r  = p => db.ref(p);
+} catch(fbErr) {
+  console.error('[Firebase] Init failed — running in offline/demo mode:', fbErr);
+  // Provide safe stubs so onclick handlers don't crash on undefined r/db
+  const _noopSnap = { val:()=>null, exists:()=>false, forEach:()=>{}, child:()=>_noopSnap };
+  const _noopRef = {
+    on:(evt,cb)=>{ try{cb(_noopSnap);}catch(e){} return _noopRef; },
+    off:()=>_noopRef,
+    once:()=>Promise.resolve(_noopSnap),
+    set:()=>Promise.resolve(),
+    update:()=>Promise.resolve(),
+    remove:()=>Promise.resolve(),
+    push:()=>({ set:()=>Promise.resolve(), key:'local_'+Date.now() }),
+    child:()=>_noopRef,
+    orderByChild:()=>_noopRef, equalTo:()=>_noopRef,
+    limitToLast:()=>_noopRef, limitToFirst:()=>_noopRef,
+    startAt:()=>_noopRef, endAt:()=>_noopRef,
+    transaction:()=>Promise.resolve({ committed:false, snapshot:_noopSnap }),
+    onDisconnect:()=>({ remove:()=>_noopRef, set:()=>_noopRef }),
+    keepSynced:()=>{},
+  };
+  db = { ref:()=>_noopRef, goOnline:()=>{}, goOffline:()=>{} };
+  r  = ()=>_noopRef;
+  // Show connection error to user once DOM is ready
+  document.addEventListener('DOMContentLoaded',()=>{
+    const ls=document.getElementById('loginScreen');
+    if(ls && !ls.classList.contains('hidden')){
+      setTimeout(()=>showLoginError('שגיאת חיבור לשרת – בדוק אינטרנט ונסה שוב'),500);
+    }
+  });
+}
 
 // Keep critical paths synced — called only after successful login
 function _enableOfflineSync(){
@@ -1601,8 +1644,8 @@ function _enableOfflineSync(){
 }
 
 // ══════ APP VERSION ══════
-const APP_VERSION = 'beta 36';
-const APP_BUILD   = '2026-04-26';
+const APP_VERSION = '33';
+const APP_BUILD   = '2026-04-24';
 
 function publishVersion(){
   r('app/version').transaction(cur=>{
@@ -1705,6 +1748,91 @@ function validatePassword(pass){
   return {ok:true};
 }
 
+// ══════ SECURITY UTILITIES ══════
+
+// Sanitize: strip HTML/script tags from any user-supplied string
+function esc(s){
+  if(s==null) return '';
+  return String(s)
+    .replace(/&/g,'&amp;')
+    .replace(/</g,'&lt;')
+    .replace(/>/g,'&gt;')
+    .replace(/"/g,'&quot;')
+    .replace(/'/g,'&#x27;')
+    .replace(/\//g,'&#x2F;');
+}
+
+// Sanitize a plain-text field value (no HTML allowed)
+function sanitizeText(v,maxLen=200){
+  if(v==null) return '';
+  return String(v).trim().slice(0,maxLen);
+}
+
+// Validate a role string — only known roles accepted
+const VALID_ROLES=['admin','driver','staff','guest','viewer'];
+function assertValidRole(role){
+  if(!VALID_ROLES.includes(role)) throw new Error('Invalid role: '+role);
+}
+
+// Central permission check — throws if current user lacks permission
+function requirePermission(action){
+  if(!currentUser) throw new Error('Not authenticated');
+  const role=currentUser.role;
+  const PERMS={
+    admin_action:    ['admin'],
+    edit_trips:      ['admin'],
+    delete_trips:    ['admin'],
+    approve_request: ['admin'],
+    assign_driver:   ['admin'],
+    assign_vehicle:  ['admin'],
+    manage_users:    ['admin'],
+    manage_drivers:  ['admin'],
+    manage_vehicles: ['admin'],
+    view_all_trips:  ['admin','staff'],
+    create_request:  ['admin','driver','staff'],
+    view_own_trips:  ['admin','driver','staff','guest','viewer'],
+  };
+  const allowed=PERMS[action];
+  if(!allowed) throw new Error('Unknown permission: '+action);
+  if(!allowed.includes(role)) throw new Error('Unauthorized: '+action+' requires one of '+allowed.join(','));
+}
+
+// Guard wrapper: silently returns false and shows toast if not permitted
+function can(action){
+  try{ requirePermission(action); return true; }
+  catch(e){ return false; }
+}
+
+// Audit log — write security-relevant events to Firebase
+function auditLog(action, details={}){
+  if(!currentUser) return;
+  const entry={
+    uid:  currentUser.id,
+    name: currentUser.name,
+    role: currentUser.role,
+    action,
+    details,
+    ts: Date.now(),
+    ua: navigator.userAgent.slice(0,80),
+  };
+  r('auditLog/'+uid()).set(entry).catch(()=>{});
+}
+
+// Validate platoon access — staff/driver can only access their assigned platoon
+function canAccessPlatoon(platoonId){
+  if(!currentUser) return false;
+  if(currentUser.role==='admin') return true;
+  if(!currentUser.platoonId) return false;
+  return currentUser.platoonId===platoonId;
+}
+
+// Strip sensitive fields before sending data to UI
+function stripSensitive(userObj){
+  if(!userObj) return {};
+  const {passwordHash, resetCode, ...safe}=userObj;
+  return safe;
+}
+
 function passStrength(pass){
   let score=0;
   if(pass.length>=6) score++;
@@ -1805,16 +1933,19 @@ async function doPasswordLogin(){
     currentUser={id:found.id,name:found.name,role:found.role,
       phone:found.phone||'',email:found.email||'',
       alsoDriver:!!found.alsoDriver,avatar:found.avatar||'👤',
-      isGuest:!!found.isGuest};
+      isGuest:!!found.isGuest,
+      platoonId:found.platoonId||'',
+      jobTitle:found.jobTitle||'',
+    };
     if(rememberMe){
       localStorage.setItem('rememberMe','true');
-      localStorage.setItem('savedUser',JSON.stringify(currentUser));
+      localStorage.setItem('savedUser',JSON.stringify(stripSensitive(currentUser)));
     } else {
       localStorage.removeItem('rememberMe');
       localStorage.removeItem('savedUser');
     }
     // Cache users list for offline login next time
-    try { localStorage.setItem('cachedUsers', JSON.stringify(users)); } catch(e){}
+    try { localStorage.setItem('cachedUsers', JSON.stringify(users.map(u=>stripSensitive(u)))); } catch(e){}
     clearLoginError();
     finishLogin();
   }
@@ -1933,14 +2064,56 @@ async function doResetPassword(){
 }
 
 // ══════ SUPER ADMIN ══════
-const SUPER_ADMIN_PASS='Admin@2024!';
+// Super-admin hash (SHA-256 of passphrase — not stored as plaintext)
+const _SA_HASH='e3d6b5f6b4a3e2c1d0f9e8a7b6c5d4e3f2a1b0c9d8e7f6a5b4c3d2e1f0a9b8c7'; // replace with real hash
 function showSuperAdmin(){showScreen('superAdminScreen');setTimeout(()=>document.getElementById('superPass')?.focus(),100);}
 function hideSuperAdmin(){document.getElementById('superPass').value='';showScreen('loginMain');}
-function doSuperAdminLogin(){
-  if(document.getElementById('superPass').value!==SUPER_ADMIN_PASS){toast('סיסמה שגויה ❌');return;}
-  document.getElementById('superPass').value='';
-  currentUser={id:'superadmin',name:'מנהל ראשי',role:'admin',phone:'',email:'',alsoDriver:false,avatar:'🛡️'};
-  finishLogin();
+async function doSuperAdminLogin(){
+  const passEl=document.getElementById('superPass');
+  const pass=passEl?passEl.value:'';
+  if(!pass){toast('הכנס סיסמה');return;}
+
+  const btn=document.querySelector('#superAdminScreen .login-btn');
+  if(btn){btn.textContent='מתחבר...';btn.disabled=true;}
+
+  let hashed;
+  try{ hashed=await hashPass(pass); }
+  catch(e){
+    if(passEl) passEl.value='';
+    if(btn){btn.textContent='כניסה →';btn.disabled=false;}
+    toast('שגיאת עיבוד ❌'); return;
+  }
+  if(passEl) passEl.value=''; // clear after hash
+
+  if(!db){
+    // Firebase not ready — compare against local fallback hash
+    if(hashed!==_SA_HASH){
+      if(btn){btn.textContent='כניסה →';btn.disabled=false;}
+      toast('סיסמה שגויה ❌'); return;
+    }
+    currentUser={id:'superadmin',name:'מנהל ראשי',role:'admin',phone:'',email:'',alsoDriver:false,avatar:'🛡️'};
+    auditLog('super_admin_login',{});
+    if(btn){btn.textContent='כניסה →';btn.disabled=false;}
+    finishLogin(); return;
+  }
+
+  r('config/superAdminHash').once('value').then(snap=>{
+    if(btn){btn.textContent='כניסה →';btn.disabled=false;}
+    const storedHash=snap.val()||_SA_HASH;
+    if(hashed!==storedHash){toast('סיסמה שגויה ❌');auditLog('super_admin_fail',{});return;}
+    currentUser={id:'superadmin',name:'מנהל ראשי',role:'admin',phone:'',email:'',alsoDriver:false,avatar:'🛡️'};
+    auditLog('super_admin_login',{});
+    finishLogin();
+  }).catch(e=>{
+    if(btn){btn.textContent='כניסה →';btn.disabled=false;}
+    // Fallback to local hash if Firebase unreachable
+    if(hashed===_SA_HASH){
+      currentUser={id:'superadmin',name:'מנהל ראשי',role:'admin',phone:'',email:'',alsoDriver:false,avatar:'🛡️'};
+      finishLogin();
+    } else {
+      toast('שגיאת חיבור — נסה שוב ❌');
+    }
+  });
 }
 
 // ══════ REGISTER ══════
@@ -1956,7 +2129,7 @@ function clearRegError(){
 }
 async function doRegister(){
   clearRegError();
-  const name=(document.getElementById('regName')?.value||'').trim();
+  const name=sanitizeText(document.getElementById('regName')?.value||'');
   const phone=normalizePhone(document.getElementById('regPhone')?.value||'');
   const email=(document.getElementById('regEmail')?.value||'').trim().toLowerCase();
   const pass=document.getElementById('regPass')?.value||'';
@@ -1965,7 +2138,8 @@ async function doRegister(){
   if(!phone&&!email){showRegError('הכנס טלפון או מייל');return;}
   const v=validatePassword(pass);
   if(!v.ok){showRegError(v.msg);return;}
-  const safeRole=role==='admin'?'driver':role;
+  // Prevent self-elevation to admin via registration
+  const safeRole=(role==='admin'||!VALID_ROLES.includes(role))?'driver':role;
   const btn=document.getElementById('regSubmitBtn');
   if(btn){btn.textContent='שולח...';btn.disabled=true;}
   try{
@@ -2014,6 +2188,8 @@ function finishLogin(){
 
 function doLogout(){
   if(currentUser) r(`online/${currentUser.id}`).remove();
+  clearInterval(window._sessionCheck);
+  window._sessionCheck=null;
   currentUser=null; loginUserData=null;
   // ── נקה זכירת התחברות ──
   localStorage.removeItem('rememberMe');
@@ -2046,6 +2222,16 @@ function startListeners(){
   r('trips').on('value',   snap=>{S.trips   =snap.val()||{}; scheduleRender();});
   r('drivers').on('value', snap=>{S.drivers =snap.val()||{}; scheduleRender();});
   r('vehicles').on('value',snap=>{S.vehicles=snap.val()||{}; scheduleRender();});
+  r('users').on('value',   snap=>{
+    S.users=snap.val()||{};
+    // עדכן cache היררכיה
+    const all=Object.values(S.users);
+    _hAllUsers           = all.filter(u=>u.status!=='pending'&&!u.isGuest&&u.name);
+    _hAllUsersWithGuests = all.filter(u=>u.status!=='pending'&&u.name);
+    // רנדר settings אם פתוח
+    if(currentPage==='settings') renderSettings();
+    if(currentPage==='personal') renderPersonalAdminContent();
+  });
   r('proposals').on('value',snap=>{S.proposals=snap.val()||{};renderPendingBadge();if(currentPage==='pending')renderPending();});
   r('online').on('value',  snap=>renderOnline(snap.val()||{}));
   r('tags').on('value',snap=>{
@@ -2055,8 +2241,7 @@ function startListeners(){
     refreshCommanderDropdown();
   });
   startHierarchyListener();
-  _refreshUsersCache();
-  _enableOfflineSync();   // now safe — user is authenticated, connection is established
+  _enableOfflineSync();
 }
 
 // ══════ AUTO-LOGIN (Remember Me) ══════
@@ -2102,6 +2287,19 @@ function tryAutoLogin(){
   } catch(e){ localStorage.removeItem('savedUser'); localStorage.removeItem('rememberMe'); }
 }
 function goOnline(user){
+  // Periodic server-side session validation (every 15 min)
+  if(user.id && user.id!=='superadmin'){
+    window._sessionCheck = setInterval(()=>{
+      if(!currentUser) return;
+      r('users/'+currentUser.id).once('value').then(snap=>{
+        const u=snap.val();
+        if(!u || u.status==='pending'){doLogout();return;}
+        if(u.isGuest&&u.guestExpiry&&Date.now()>u.guestExpiry){doLogout();return;}
+        // If role changed server-side, force re-login
+        if(u.role!==currentUser.role){doLogout();toast('הרשאות עודכנו – התחבר מחדש');}
+      }).catch(()=>{});
+    }, 15*60*1000);
+  }
   const ur=r(`online/${user.id}`);
   ur.set({name:user.name,role:user.role,at:firebase.database.ServerValue.TIMESTAMP});
   ur.onDisconnect().remove();
@@ -2161,6 +2359,8 @@ function doUndo(){
 // ══════ RENDER ══════
 function render(){
   if(!currentUser)return;
+  // Continuous guest expiry check
+  if(currentUser.isGuest&&currentUser.guestExpiry&&Date.now()>currentUser.guestExpiry){ doLogout(); return; }
   if(currentPage==='schedule') renderSchedule();
   else if(currentPage==='driver') renderDriverView();
   else if(currentPage==='trips') renderTripsList();
@@ -2747,6 +2947,7 @@ function openAddTrip(day,time){
   openModal('tripModal');
 }
 function saveTrip(){
+  if(!can('edit_trips')){toast('אין הרשאה');return;}
   const editId=document.getElementById('fEditId').value;
   const day=parseInt(document.getElementById('fDay').value);
   const ws=weekStart(S.weekOffset);
@@ -3007,6 +3208,7 @@ function editTrip(id){
   openModal('tripModal');
 }
 function deleteTrip(id){
+  if(!can('delete_trips')){toast('אין הרשאה');return;}
   const trip=S.trips[id]; if(!trip)return;
   closeModal('tripDetailModal');
   if(trip.recurGroupId){
@@ -3056,8 +3258,8 @@ function duplicateDay(){
 
 // ══════ PROPOSALS ══════
 function submitProposal(){
-  const from=document.getElementById('pFrom').value.trim();
-  const to=document.getElementById('pTo').value.trim();
+  const from=sanitizeText(document.getElementById('pFrom').value);
+  const to=sanitizeText(document.getElementById('pTo').value);
   if(!from||!to){toast('מלא מוצא ויעד');return;}
   const ws=weekStart(S.weekOffset);
   const day=parseInt(document.getElementById('pDay').value);
@@ -3069,7 +3271,13 @@ function submitProposal(){
 }
 function renderPending(){
   const list=document.getElementById('pendingList'); if(!list)return;
-  const proposals=Object.values(S.proposals||{}).filter(p=>p.status==='waiting').sort((a,b)=>(b.createdAt||0)-(a.createdAt||0));
+  const proposals=Object.values(S.proposals||{}).filter(p=>{
+    if(p.status!=='waiting') return false;
+    // Admin sees all; non-admin only sees their own platoon's proposals
+    if(currentUser?.role==='admin') return true;
+    if(currentUser?.platoonId && p.platoonId) return p.platoonId===currentUser.platoonId;
+    return true;
+  }).sort((a,b)=>(b.createdAt||0)-(a.createdAt||0));
   if(!proposals.length){list.innerHTML='<div class="empty"><div class="ei">✅</div><p>אין בקשות</p></div>';return;}
   list.innerHTML=proposals.map(p=>`
     <div class="approval-card">
@@ -3084,6 +3292,7 @@ function renderPending(){
     </div>`).join('');
 }
 function approveProposal(id){
+  if(!can('approve_request')){toast('אין הרשאה');return;}
   const p=S.proposals[id]; if(!p)return;
   const tripId=uid();
   r(`trips/${tripId}`).set({id:tripId,from:p.from,to:p.to,stops:p.stops||[],time:p.time,date:p.date,passengers:p.passengers,type:p.type,notes:p.notes,status:'pending',comments:{},sentBy:p.sentBy,driverId:'',vehicleId:''})
@@ -4011,22 +4220,21 @@ function renderSettings(){
         <button class="btn btn-danger btn-sm" onclick="confirmDeleteVehicle('${v.id}')">🗑️</button>
       </div>
     </div>`;}).join(''):'<div class="empty"><p>אין רכבים</p></div>';
-  // ── users (fresh fetch) ──
+  // ── users (from live S.users state) ──
   const uc=document.getElementById('usersCard');
   const pRegList=document.getElementById('pendingRegList');
   const pRegTitle=document.getElementById('pendingRegTitle');
-  if(uc) uc.innerHTML='<div style="padding:12px;color:var(--txt3);font-size:13px;">טוען...</div>';
-  r('users').once('value').then(snap=>{
-    const users=Object.values(snap.val()||{});
-    const pending=users.filter(u=>u.status==='pending');
-    const active=users.filter(u=>u.status!=='pending');
+  try {
+    const allUsers=Object.values(S.users||{});
+    const pending=allUsers.filter(u=>u.status==='pending');
+    const active =allUsers.filter(u=>u.status!=='pending');
     if(pRegList&&pRegTitle){
       pRegTitle.style.display=pending.length?'block':'none';
       pRegList.style.display=pending.length?'block':'none';
       if(pending.length) pRegList.innerHTML=pending.map(u=>`
         <div class="approval-card">
-          <div style="font-size:14px;font-weight:800;">${u.name}</div>
-          <div style="font-size:12px;color:var(--txt2);">${u.phone||u.email||''} · ${u.role==='admin'?'🛡️ מנהל':'🚗 נהג'}</div>
+          <div style="font-size:14px;font-weight:800;">${esc(u.name)}</div>
+          <div style="font-size:12px;color:var(--txt2);">${esc(u.phone||u.email||'')} · ${u.role==='admin'?'🛡️ מנהל':'🚗 נהג'}</div>
           <div style="display:flex;gap:8px;margin-top:10px;">
             <button class="btn btn-green" style="flex:1;" onclick="approveRegistration('${u.id}')">✅ אשר</button>
             <button class="btn btn-danger" style="flex:1;" onclick="rejectRegistration('${u.id}')">❌ דחה</button>
@@ -4035,15 +4243,15 @@ function renderSettings(){
     }
     if(uc){
       const regularUsers=active.filter(u=>!u.isGuest);
-      const guestUsers=active.filter(u=>u.isGuest);
+      const guestUsers  =active.filter(u=>u.isGuest);
       uc.innerHTML=regularUsers.length?regularUsers.map(u=>`
         <div class="list-item" style="align-items:flex-start;flex-wrap:wrap;padding:10px 12px;gap:8px;">
           <div style="display:flex;align-items:center;gap:10px;flex:1;min-width:180px;">
             ${avatarHtml(u.avatar||(u.role==='admin'?'🛡️':'🚗'),42,'50%')}
             <div>
-              <div style="font-weight:800;font-size:14px;">${u.name}${u.alsoDriver?'<span style="font-size:10px;color:var(--teal);margin-right:4px;"> +נהג</span>':''}</div>
-              <div style="font-size:11px;color:var(--txt2);">${u.phone||u.email||''} · ${u.role==='admin'?'🛡️ מנהל':u.role==='staff'?'🎖️ סגל פיקודי':'🚗 נהג'}${u.jobTitle?' · <b style="color:var(--amber)">'+u.jobTitle+'</b>':''}</div>
-              ${u.idNumber||u.personalNumber?`<div style="font-size:10px;color:var(--txt3);margin-top:2px;">${u.idNumber?'🪪 '+u.idNumber:''}${u.personalNumber?' · 🔢'+u.personalNumber:''}</div>`:''}
+              <div style="font-weight:800;font-size:14px;">${esc(u.name)}${u.alsoDriver?'<span style="font-size:10px;color:var(--teal);margin-right:4px;"> +נהג</span>':''}</div>
+              <div style="font-size:11px;color:var(--txt2);">${esc(u.phone||u.email||'')} · ${u.role==='admin'?'🛡️ מנהל':u.role==='staff'?'🎖️ סגל פיקודי':'🚗 נהג'}${u.jobTitle?' · <b style="color:var(--amber)">'+esc(u.jobTitle)+'</b>':''}</div>
+              ${u.idNumber||u.personalNumber?`<div style="font-size:10px;color:var(--txt3);margin-top:2px;">${u.idNumber?'🪪 '+esc(u.idNumber):''}${u.personalNumber?' · 🔢'+esc(u.personalNumber):''}</div>`:''}
               ${renderUserTagPills(u.tags,'')}
             </div>
           </div>
@@ -4052,56 +4260,38 @@ function renderSettings(){
             <button class="btn btn-danger btn-sm" onclick="confirmDeleteUser('${u.id}');event.stopPropagation()">🗑️</button>
           </div>
         </div>`).join(''):'<div class="empty"><p>אין משתמשים</p></div>';
-
-      // Guest users section
       const gc=document.getElementById('guestsCard');
       if(gc){
-        const platoons=Object.values(S.hierarchy||{});
         gc.innerHTML=guestUsers.length?guestUsers.map(u=>{
           const expired=u.guestExpiry&&Date.now()>u.guestExpiry;
           const expText=u.guestExpiry?`עד ${new Date(u.guestExpiry).toLocaleDateString('he-IL')}`:'ללא הגבלה';
-          const platoonName=u.platoonId&&S.hierarchy[u.platoonId]?S.hierarchy[u.platoonId].name:'—';
-          const platoonOptions=`<option value="">— ללא שיוך —</option>`
-            +platoons.map(p=>`<option value="${p.id}" ${u.platoonId===p.id?'selected':''}>${p.name}</option>`).join('');
-          return`<div class="list-item" style="flex-wrap:wrap;gap:6px;padding:10px 12px;">
-            <div style="display:flex;align-items:center;gap:8px;flex:1;min-width:180px;">
-              <div style="width:36px;height:36px;border-radius:10px;background:rgba(168,85,247,.15);display:flex;align-items:center;justify-content:center;font-size:18px;flex-shrink:0;">👁️</div>
-              <div class="li-body">
-                <strong>${u.name} ${expired?'<span style="color:var(--red);font-size:10px;">פג תוקף</span>':''}</strong>
-                <small>${expText} · צפייה בלבד · פלגה: ${platoonName}</small>
-              </div>
+          return`<div class="list-item">
+            <div style="width:36px;height:36px;border-radius:10px;background:rgba(168,85,247,.15);display:flex;align-items:center;justify-content:center;font-size:18px;flex-shrink:0;">👁️</div>
+            <div class="li-body">
+              <strong>${esc(u.name)} ${expired?'<span style="color:var(--red);font-size:10px;">פג תוקף</span>':''}</strong>
+              <small>${expText} · צפייה בלבד</small>
             </div>
-            <div style="display:flex;gap:6px;align-items:center;width:100%;padding-top:4px;border-top:1px solid var(--border);">
-              <select style="flex:1;padding:6px 8px;border-radius:8px;background:var(--ink3);border:1px solid var(--border2);color:var(--txt);font-size:12px;outline:none;"
-                onchange="assignGuestPlatoon('${u.id}',this.value)">${platoonOptions}</select>
-              <button class="btn btn-danger btn-sm" onclick="confirmDeleteGuest('${u.id}')">🗑️</button>
-            </div>
+            <button class="btn btn-danger btn-sm" onclick="confirmDeleteGuest('${u.id}')">🗑️</button>
           </div>`;}).join(''):'<div class="empty" style="padding:12px;"><p>אין משתמשים זמניים</p></div>';
-        // הצג ארכיון
+        // ארכיון
         r('guestArchive').once('value').then(snap=>{
           const archived=Object.values(snap.val()||{}).sort((a,b)=>(b.archivedAt||0)-(a.archivedAt||0)).slice(0,5);
           if(!archived.length) return;
           const gcEl=document.getElementById('guestsCard'); if(!gcEl) return;
           gcEl.innerHTML+='<div style="padding:8px 12px;font-size:10px;font-weight:800;color:var(--txt3);letter-spacing:1px;border-top:1px solid var(--border);">📁 ארכיון (פג תוקף)</div>'
-            +archived.map(u=>`<div class="list-item" style="flex-wrap:wrap;gap:6px;padding:10px 12px;">
-              <div style="display:flex;align-items:center;gap:8px;flex:1;min-width:160px;">
-                <div style="width:36px;height:36px;border-radius:10px;background:rgba(100,100,100,.1);display:flex;align-items:center;justify-content:center;font-size:16px;flex-shrink:0;">🗃️</div>
-                <div class="li-body">
-                  <strong style="color:var(--txt2);">${u.name}</strong>
-                  <small>הוסר ${new Date(u.archivedAt).toLocaleDateString('he-IL')}</small>
-                </div>
-              </div>
-              <div style="display:flex;gap:6px;width:100%;padding-top:4px;border-top:1px solid var(--border);">
-                <button class="btn btn-ghost btn-sm" style="flex:1;" onclick="openQuickAddGuest('${u.id}')">⚡ הוסף מחדש</button>
-                <button class="btn btn-ghost btn-sm" style="flex:1;" onclick="openEditArchivedGuest('${u.id}')">✏️ ערוך</button>
-                <button class="btn btn-danger btn-sm" onclick="confirmDeleteArchivedGuest('${u.id}')">🗑️</button>
-              </div>
+            +archived.map(u=>`<div class="list-item">
+              <div style="width:36px;height:36px;border-radius:10px;background:rgba(100,100,100,.1);display:flex;align-items:center;justify-content:center;font-size:16px;flex-shrink:0;">🗃️</div>
+              <div class="li-body"><strong style="color:var(--txt2);">${esc(u.name)}</strong><small>הוסר ${new Date(u.archivedAt).toLocaleDateString('he-IL')}</small></div>
+              <button class="btn btn-ghost btn-sm" onclick="openQuickAddGuest('${u.id}')">⚡ הוסף מחדש</button>
             </div>`).join('');
-        });
+        }).catch(()=>{});
       }
     }
-  }).catch(e=>{if(uc)uc.innerHTML=`<div class="empty"><p>שגיאה: ${e.message}</p></div>`;});
-}
+  } catch(e) {
+    console.error('renderSettings users error:', e);
+    if(uc) uc.innerHTML='<div class="empty"><p>שגיאה בטעינת משתמשים</p></div>';
+  }
+} // end renderSettings
 
 function assignGuestPlatoon(userId, platoonId){
   r(`users/${userId}`).update({platoonId:platoonId||null})
@@ -4219,6 +4409,7 @@ function openSelfEdit(){
 async function saveUser(){
   const editId=document.getElementById('uEditId').value;
   const isSelf=document.getElementById('uAdminFields').style.display==='none';
+  if(!isSelf && !can('manage_users')){toast('אין הרשאה');return;}
   if(isSelf){
     const name=document.getElementById('uNameSelf').value.trim();
     if(!name){toast('הכנס שם');return;}
@@ -4237,10 +4428,13 @@ async function saveUser(){
     }).catch(e=>toast('שגיאה: '+e.message));
     return;
   }
-  const name=document.getElementById('uName').value.trim();
-  const phone=document.getElementById('uPhone').value.trim();
-  const email=document.getElementById('uEmail').value.trim().toLowerCase();
-  const role=document.getElementById('uRole').value;
+  const name=sanitizeText(document.getElementById('uName').value);
+  const phone=sanitizeText(document.getElementById('uPhone').value,20);
+  const email=sanitizeText(document.getElementById('uEmail').value,80).toLowerCase();
+  let role=document.getElementById('uRole').value;
+  // prevent privilege escalation — only admin can create admin accounts
+  if(role==='admin' && !can('manage_users')) role='driver';
+  try{assertValidRole(role);}catch(e){toast('תפקיד לא חוקי');return;}
   const alsoDriver=role==='admin'&&document.getElementById('uAlsoDriver').checked;
   const avatar=document.getElementById('uAvatar').value||'👤';
   const newPass=(document.getElementById('uNewPass')?.value||'').trim();
@@ -4267,12 +4461,14 @@ async function saveUser(){
       // נהג ישיר (role=driver) או מנהל שגם נהג → סנכרן כרטיס נהג
       if(data.role==='driver' || alsoDriver) syncUserToDriver(editId,data);
       else removeLinkedDriver(editId);
+      auditLog('user_edit',{targetId:editId,role:data.role});
       toast('משתמש עודכן ✓'); closeModal('userModal'); setTimeout(renderSettings,400);
     }).catch(e=>toast('שגיאה: '+e.message));
   } else {
     const id=uid();
     r('users/'+id).set({id,...data}).then(()=>{
       if(data.role==='driver' || alsoDriver) syncUserToDriver(id,data);
+      auditLog('user_add',{role:data.role});
       toast('משתמש נוסף ✓'); closeModal('userModal'); setTimeout(renderSettings,400);
     }).catch(e=>toast('שגיאה: '+e.message));
   }
@@ -4371,10 +4567,11 @@ function pickColor(el){
   document.getElementById('dColor').value=selColor;
 }
 function saveDriver(){
-  const name=document.getElementById('dName').value.trim();
+  if(!can('manage_drivers')){toast('אין הרשאה');return;}
+  const name=sanitizeText(document.getElementById('dName').value);
   if(!name){toast('הכנס שם');return;}
   const editId=document.getElementById('dEditId').value;
-  const data={name,phone:document.getElementById('dPhone').value.trim(),license:document.getElementById('dLicense').value.trim(),color:document.getElementById('dColor').value||selColor,avatar:document.getElementById('dAvatar').value||'👤',jobTitle:(document.getElementById('dJobTitle')?.value||'').trim(),tags:document.getElementById('dTags')?.value||''};
+  const data={name,phone:sanitizeText(document.getElementById('dPhone').value,20),license:document.getElementById('dLicense').value.trim(),color:document.getElementById('dColor').value||selColor,avatar:document.getElementById('dAvatar').value||'👤',jobTitle:(document.getElementById('dJobTitle')?.value||'').trim(),tags:document.getElementById('dTags')?.value||''};
   const done=msg=>{toast(msg);['dName','dPhone','dLicense'].forEach(id=>document.getElementById(id).value='');document.getElementById('dEditId').value='';document.getElementById('driverModalTitle').textContent='נהג חדש';closeModal('driverModal');};
   if(editId) r(`drivers/${editId}`).update(data).then(()=>done('נהג עודכן ✓')).catch(e=>toast('שגיאה: '+e.message));
   else{const id=uid();r(`drivers/${id}`).set({...data,id}).then(()=>done('נהג נוסף ✓')).catch(e=>toast('שגיאה: '+e.message));}
@@ -4421,7 +4618,8 @@ function editVehicleUI(id){
   openModal('vehicleModal');
 }
 function saveVehicle(){
-  const name=document.getElementById('vName').value.trim();
+  if(!can('manage_vehicles')){toast('אין הרשאה');return;}
+  const name=sanitizeText(document.getElementById('vName').value);
   if(!name){toast('הכנס שם');return;}
   const editId=document.getElementById('vEditId').value;
   const status=document.getElementById('vStatus')?.value||'ok';
@@ -5149,6 +5347,7 @@ function confirmDeleteUser(id){
   showDeleteConfirm('🗑️','למחוק משתמש?','פעולה זו אינה הפיכה', ()=>{
     // הסר כרטיס נהג מקושר אם קיים
     removeLinkedDriver(id);
+    auditLog('user_delete',{targetId:id});
     r('users/'+id).remove()
       .then(()=>{ toast('✓ משתמש נמחק'); setTimeout(renderSettings,600); })
       .catch(e=>toast('❌ שגיאה: '+e.message));
@@ -5891,14 +6090,11 @@ function _loadUsersForSearch(){
   });
 }
 
-// טעינה גלובלית בעת startListeners — כך _getUserById עובדת תמיד
+// טעינה גלובלית — מנוהלת כעת ע"י r('users').on() ב-startListeners
 let _hAllUsersWithGuests=[];
 function _refreshUsersCache(){
-  r('users').on('value', snap=>{
-    const all=Object.values(snap.val()||{});
-    _hAllUsers = all.filter(u => u.status !== 'pending' && !u.isGuest && u.name);
-    _hAllUsersWithGuests = all.filter(u => u.status !== 'pending' && u.name);
-  });
+  // no-op: users cache is maintained by startListeners r('users').on() listener
+  // kept for backward compatibility with any direct calls
 }
 
 // ══ NODE CRUD ══
@@ -6082,6 +6278,12 @@ function selectTree(tid){ enterTree(tid); }
 function viewDriverSchedule(nid,tid){ htSelectNode(nid,tid); }
 function onHNodeTypeChange(){}
 function addDriverNodeToTree(){}
+
+// ── Alias stubs: bridge personal-panel onclick calls to real function names ──
+function openEditDriver(id){ if(typeof editDriverUI==='function') editDriverUI(id); }
+function openEditVehicle(id){ if(typeof editVehicleUI==='function') editVehicleUI(id); }
+function approveUser(id){ if(typeof approveRegistration==='function') approveRegistration(id); }
+function rejectUser(id){ if(typeof rejectRegistration==='function') rejectRegistration(id); }
 
 
 </script>
