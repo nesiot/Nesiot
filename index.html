@@ -660,9 +660,8 @@ body.light-mode #fabSheetInner{
 .lswipe-wrapper,
 .swipe-container{
   position:relative;
-  overflow:hidden;
+  overflow:visible;            /* must be visible — not hidden — to show actions */
   border-bottom:1px solid var(--border);
-  -webkit-transform:translateZ(0);transform:translateZ(0);
 }
 .lswipe-wrapper:last-child,
 .swipe-container:last-child{border-bottom:none;}
@@ -679,9 +678,10 @@ body.light-mode #fabSheetInner{
 .swipe-content.is-dragging{transition:none!important;}
 .lswipe-side-actions,
 .swipe-actions{
-  position:absolute;top:0;bottom:0;right:0;
-  width:165px;display:flex;align-items:stretch;z-index:1;
-  overflow:hidden;
+  position:absolute;top:0;bottom:0;right:0;height:100%;
+  width:max-content;           /* real content width only */
+  min-width:165px;
+  display:flex;align-items:stretch;z-index:1;
   pointer-events:none;
   will-change:transform;
   transition:transform .28s cubic-bezier(.25,.46,.45,.94);
@@ -3220,11 +3220,11 @@ function _lsaClose(animate=true){
   if(!_openLSA) return;
   const inn = _openLSA.querySelector('.lswipe-inner-card,.swipe-content,.lswipe-content');
   const act = _openLSA.querySelector('.lswipe-side-actions,.swipe-actions,.lswipe-actions');
-  const dur = animate ? '280ms' : '0ms';
-  if(inn){ inn.style.transition=`transform ${dur} cubic-bezier(.25,.46,.45,.94)`; inn.style.transform='translateX(0px)'; }
+  const T = animate ? 'transform 260ms cubic-bezier(.25,.46,.45,.94)' : 'none';
+  if(inn){ inn.style.transition=T; inn.style.transform='translate3d(0,0,0)'; }
   if(act){
-    act.style.transition=`transform ${dur} cubic-bezier(.25,.46,.45,.94)`;
-    act.style.transform=`translateX(${LSA_W}px)`;
+    act.style.transition=T;
+    act.style.transform=`translate3d(${LSA_W}px,0,0)`;
     act.style.pointerEvents='none';
     act.classList.remove('is-open');
   }
@@ -3232,7 +3232,6 @@ function _lsaClose(animate=true){
 }
 
 function _lsaSetup(wrapper){
-  // Guard: skip if already bound to prevent duplicate listeners on same node
   if(wrapper._lsaBound) return;
   wrapper._lsaBound = true;
 
@@ -3240,62 +3239,91 @@ function _lsaSetup(wrapper){
   const act = wrapper.querySelector('.lswipe-side-actions,.swipe-actions,.lswipe-actions');
   if(!inn) return;
 
-  // Use inn directly — NO cloneNode (cloneNode breaks wrapper reference)
-  inn.style.transform  = 'translateX(0px)';
-  inn.style.transition = 'none';
-  if(act){
-    act.style.transform     = `translateX(${LSA_W}px)`;
-    act.style.transition    = 'none';
-    act.style.pointerEvents = 'none';
+  const OPEN   = LSA_W;           // card slides exactly the actions panel width
+  const EASE   = 'transform 300ms cubic-bezier(.25,.46,.45,.94)';
+  const EASE_C = 'transform 260ms cubic-bezier(.25,.46,.45,.94)';
+
+  function getX(el){
+    const m = el.style.transform.match(/translate3d\(\s*([-\d.]+)px/);
+    return m ? parseFloat(m[1]) : 0;
+  }
+  function setPos(x, animate){
+    inn.style.transition = animate ? EASE : 'none';
+    inn.style.transform  = `translate3d(${x}px,0,0)`;
+    if(act){
+      act.style.transition = animate ? EASE : 'none';
+      act.style.transform  = `translate3d(${LSA_W + x}px,0,0)`;
+    }
   }
 
-  let sx=0,sy=0,tracking=false,axis=null,baseX=0,hapticFired=false;
+  // Initial closed state
+  setPos(0, false);
+  if(act){ act.style.pointerEvents = 'none'; act.classList.remove('is-open'); }
 
-  inn.addEventListener('touchstart',e=>{
-    if(_openLSA&&_openLSA!==wrapper) _lsaClose();
-    sx=e.touches[0].clientX; sy=e.touches[0].clientY;
-    baseX=parseFloat((inn.style.transform.match(/translateX\(([-\d.]+)px\)/)||[0,'0'])[1]);
-    tracking=true; axis=null; hapticFired=false;
-    inn.style.transition='none';
-    if(act) act.style.transition='none';
+  let sx=0, sy=0, tracking=false, axis=null, baseX=0, hapticFired=false;
+
+  inn.addEventListener('touchstart', e=>{
+    if(_openLSA && _openLSA !== wrapper) _lsaClose();
+    sx = e.touches[0].clientX;
+    sy = e.touches[0].clientY;
+    baseX = getX(inn);
+    tracking = true; axis = null; hapticFired = false;
+    // kill transition immediately on touch
+    inn.style.transition = 'none';
+    if(act) act.style.transition = 'none';
   },{passive:true});
 
-  inn.addEventListener('touchmove',e=>{
+  inn.addEventListener('touchmove', e=>{
     if(!tracking) return;
-    const dx=e.touches[0].clientX-sx, dy=e.touches[0].clientY-sy;
-    if(!axis){ if(Math.abs(dx)<6&&Math.abs(dy)<6) return; axis=Math.abs(dx)>Math.abs(dy)?'h':'v'; }
-    if(axis==='v'){ tracking=false; return; }
-    let raw=baseX+dx;
-    if(raw>0) raw=0;
-    if(raw<-LSA_W) raw=-LSA_W+(raw+LSA_W)*0.12;
-    inn.style.transform=`translateX(${raw}px)`;
-    if(act) act.style.transform=`translateX(${LSA_W+raw}px)`;
-    if(!hapticFired&&Math.abs(raw)>LSA_THRESH*0.8){ haptic('light'); hapticFired=true; }
+    const dx = e.touches[0].clientX - sx;
+    const dy = e.touches[0].clientY - sy;
+    if(!axis){
+      if(Math.abs(dx) < 5 && Math.abs(dy) < 5) return;
+      axis = Math.abs(dx) > Math.abs(dy) ? 'h' : 'v';
+    }
+    if(axis === 'v'){ tracking = false; return; }
+    let raw = baseX + dx;
+    if(raw > 0)       raw = 0;
+    if(raw < -OPEN)   raw = -OPEN + (raw + OPEN) * 0.15;
+    inn.style.transform = `translate3d(${raw}px,0,0)`;
+    if(act) act.style.transform = `translate3d(${LSA_W + raw}px,0,0)`;
+    if(!hapticFired && Math.abs(raw) > LSA_THRESH * 0.75){ haptic('light'); hapticFired = true; }
   },{passive:true});
 
-  const onEnd=()=>{
+  const onEnd = ()=>{
     if(!tracking) return;
-    tracking=false;
-    const live=parseFloat((inn.style.transform.match(/translateX\(([-\d.]+)px\)/)||[0,'0'])[1]);
-    const T='transform 280ms cubic-bezier(.25,.46,.45,.94)';
-    let target=0;
-    if(_openLSA===wrapper){
-      target=(live>-LSA_W*0.45)?0:-LSA_W;
-      if(target===0){ _openLSA=null; if(act){act.style.pointerEvents='none';act.classList.remove('is-open');} }
+    tracking = false;
+    const live = getX(inn);
+
+    if(_openLSA === wrapper){
+      // already open: close only if swiped back enough
+      if(live > -OPEN * 0.4){
+        setPos(0, true);
+        _openLSA = null;
+        if(act){ act.style.pointerEvents='none'; act.classList.remove('is-open'); }
+      } else {
+        setPos(-OPEN, true);
+      }
     } else {
-      if(live<-LSA_THRESH){
-        target=-LSA_W; _openLSA=wrapper; haptic('medium');
-        if(act){act.style.pointerEvents='auto';act.classList.add('is-open');}
+      if(live < -LSA_THRESH){
+        setPos(-OPEN, true);
+        _openLSA = wrapper;
+        haptic('medium');
+        if(act){ act.style.pointerEvents='auto'; act.classList.add('is-open'); }
+      } else {
+        setPos(0, true);
       }
     }
-    inn.style.transition=T; inn.style.transform=`translateX(${target}px)`;
-    if(act){ act.style.transition=T; act.style.transform=`translateX(${LSA_W+target}px)`; }
   };
-  inn.addEventListener('touchend',onEnd,{passive:true});
-  inn.addEventListener('touchcancel',onEnd,{passive:true});
 
-  inn.addEventListener('click',e=>{
-    if(_openLSA===wrapper&&!e.target.closest('.lsa-btn,.swipe-action-btn,.lsa-button')){ e.stopPropagation(); _lsaClose(); }
+  inn.addEventListener('touchend',   onEnd, {passive:true});
+  inn.addEventListener('touchcancel', onEnd, {passive:true});
+
+  inn.addEventListener('click', e=>{
+    if(_openLSA === wrapper && !e.target.closest('.lsa-btn,.swipe-action-btn')){
+      e.stopPropagation();
+      _lsaClose();
+    }
   });
 }
 
@@ -4422,7 +4450,8 @@ function renderPersonalSubContent(name){
       if(i===0) o.selected=true;
       sel.appendChild(o);
     }
-    renderPersonalAnalytics();
+    // Defer chart init until canvas elements are fully painted in DOM
+    setTimeout(()=>renderPersonalAnalytics(), 50);
   } else if(name==='notifs'){
     loadNotifSettings();
     cont.innerHTML='<div style="padding:12px;"><div class="card" id="panNotifCard"></div></div>';
@@ -4511,7 +4540,14 @@ function renderPersonalSubContent(name){
 }
 
 let _panCharts={};
+function _panDestroyCharts(){
+  Object.keys(_panCharts).forEach(k=>{
+    try{ _panCharts[k].destroy(); }catch(e){}
+    delete _panCharts[k];
+  });
+}
 function renderPersonalAnalytics(){
+  _panDestroyCharts();
   const month=document.getElementById('panFilterMonth')?.value||'';
   const statusF=document.getElementById('panFilterStatus')?.value||'';
   let ft=trips().filter(t=>{
@@ -4548,8 +4584,7 @@ function renderPersonalAnalytics(){
         <div style="font-size:12px;font-weight:900;color:var(--teal);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${topV?(gv(topV[0])?.name||gv(topV[0])?.plate||'?'):'—'}</div>
         <div style="font-size:10px;color:var(--txt2);">${topV?topV[1]+' נסיעות':''}</div></div>
     </div>`;
-  // Charts
-  ['panDaily','panWeekly','panVehicle','panDriver'].forEach(k=>{ if(_panCharts[k]){try{_panCharts[k].destroy();}catch(e){}delete _panCharts[k];} });
+  // Charts — already destroyed by _panDestroyCharts() at function start
   if(month){
     const [yr,mo]=month.split('-').map(Number);
     const days=new Date(yr,mo,0).getDate();
