@@ -993,6 +993,14 @@ body.light-mode .swipe-inner .trip-block{ background: #d1dce8 !important; }
     <div class="qa-chip" onclick="addTemplate('pickup')">🏠→🏢 איסוף</div>
     <div class="qa-chip" onclick="addTemplate('return')">🏢→🏠 החזרה</div>
     <div class="qa-chip" onclick="duplicateDay()">📋 שכפל יום</div>
+    <div class="qa-chip" onclick="exportDayToCalendar()" style="display:flex;align-items:center;gap:5px;">
+      <svg viewBox="0 0 24 24" style="width:13px;height:13px;stroke:currentColor;stroke-width:2;fill:none;stroke-linecap:round;stroke-linejoin:round;flex-shrink:0;"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+      ייצא יום
+    </div>
+    <div class="qa-chip" onclick="exportWeekToCalendar()" style="display:flex;align-items:center;gap:5px;">
+      <svg viewBox="0 0 24 24" style="width:13px;height:13px;stroke:currentColor;stroke-width:2;fill:none;stroke-linecap:round;stroke-linejoin:round;flex-shrink:0;"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/><line x1="8" y1="14" x2="16" y2="14"/></svg>
+      ייצא שבוע
+    </div>
   </div>
   <div style="padding:0 12px 80px;" id="dayTimeline"></div>
 </div>
@@ -1125,6 +1133,8 @@ body.light-mode .swipe-inner .trip-block{ background: #d1dce8 !important; }
 
     <div class="sec-title">🔔 הגדרות התראות</div>
     <div style="padding:0 12px 12px;"><div class="card" id="adminNotifCard"></div></div>
+    <div class="sec-title">📅 הגדרות יומן</div>
+    <div style="padding:0 12px 12px;"><div class="card" id="adminCalCard"></div></div>
   </div>
   <!-- DRIVER PANEL -->
   <div id="driverSettingsPanel" style="display:none;">
@@ -1135,6 +1145,8 @@ body.light-mode .swipe-inner .trip-block{ background: #d1dce8 !important; }
     </div>
     <div class="sec-title">🔔 הגדרות התראות</div>
     <div style="padding:0 12px 12px;"><div class="card" id="driverNotifCard"></div></div>
+    <div class="sec-title">📅 הגדרות יומן</div>
+    <div style="padding:0 12px 12px;"><div class="card" id="driverCalCard"></div></div>
   </div>
   <!-- STAFF PANEL -->
   <div id="staffSettingsPanel" style="display:none;">
@@ -1145,6 +1157,8 @@ body.light-mode .swipe-inner .trip-block{ background: #d1dce8 !important; }
     </div>
     <div class="sec-title">🔔 הגדרות התראות</div>
     <div style="padding:0 12px 12px;"><div class="card" id="staffNotifCard"></div></div>
+    <div class="sec-title">📅 הגדרות יומן</div>
+    <div style="padding:0 12px 12px;"><div class="card" id="staffCalCard"></div></div>
   </div>
   <div style="height:80px;"></div>
 
@@ -1311,6 +1325,16 @@ body.light-mode .swipe-inner .trip-block{ background: #d1dce8 !important; }
       <div class="field-row">
         <div class="field"><label>יום</label><select id="fDay"><option value="0">ראשון</option><option value="1">שני</option><option value="2">שלישי</option><option value="3">רביעי</option><option value="4">חמישי</option><option value="5">שישי</option><option value="6">שבת</option></select></div>
         <div class="field"><label>שעה</label><input type="time" id="fTime" value="08:00"></div>
+      </div>
+      <div class="field-row">
+        <div class="field">
+          <label style="display:flex;align-items:center;gap:5px;">
+            <svg viewBox="0 0 24 24" style="width:14px;height:14px;stroke:currentColor;stroke-width:1.8;fill:none;stroke-linecap:round;stroke-linejoin:round;opacity:.7;"><circle cx="12" cy="12" r="9"/><polyline points="12 7 12 12 15 15"/><line x1="12" y1="3" x2="12" y2="1"/></svg>
+            שעת סיום משוערת
+            <span style="font-size:10px;color:var(--txt3);font-weight:400;">(אופציונלי)</span>
+          </label>
+          <input type="time" id="fEstimatedEnd" placeholder="—">
+        </div>
       </div>
       <div class="field"><label>מוצא</label><input type="text" id="fFrom" placeholder="כתובת מוצא..."></div>
       <div id="stopsContainer"></div>
@@ -2770,6 +2794,141 @@ function avatarHtml(av,size=40,radius='50%'){
   return `<div style="width:${size}px;height:${size}px;border-radius:${radius};background:var(--ink3);display:flex;align-items:center;justify-content:center;font-size:${Math.round(size*.5)}px;">${av}</div>`;
 }
 
+// ══════ CALENDAR SETTINGS ══════
+// Stored in localStorage under key 'calSettings'
+// Shape: { app: 'system'|'google'|'apple'|'outlook', mode: 'quick'|'ask', reminder: 0|15|30|60 }
+const CAL_DEFAULTS = { app: 'system', mode: 'quick', reminder: 15 };
+let _calSettings = { ...CAL_DEFAULTS };
+
+function loadCalSettings(){
+  try{
+    const raw = localStorage.getItem('calSettings');
+    if(raw){ const p = JSON.parse(raw); _calSettings = { ...CAL_DEFAULTS, ...p }; }
+    else _calSettings = { ...CAL_DEFAULTS };
+  }catch(e){ _calSettings = { ...CAL_DEFAULTS }; }
+}
+
+function saveCalSetting(key, val){
+  _calSettings[key] = val;
+  try{ localStorage.setItem('calSettings', JSON.stringify(_calSettings)); }catch(e){}
+}
+
+// Render the calendar settings card into a given container element id
+function renderCalSettings(cardId){
+  loadCalSettings();
+  const card = document.getElementById(cardId); if(!card) return;
+  const s = _calSettings;
+
+  const calApps = [
+    { val:'system',  icon:'📅', label:'ברירת מחדל' },
+    { val:'google',  icon:'🗓',  label:'Google Calendar' },
+    { val:'apple',   icon:'',   label:'Apple Calendar' },
+    { val:'outlook', icon:'📧', label:'Outlook' },
+  ];
+  const reminders = [
+    { val:0,  label:'ללא תזכורת' },
+    { val:15, label:'15 דקות' },
+    { val:30, label:'30 דקות' },
+    { val:60, label:'שעה' },
+  ];
+
+  card.innerHTML = `
+    <!-- app preference -->
+    <div style="padding:10px 14px 4px;">
+      <div style="font-size:10px;font-weight:800;color:var(--txt3);letter-spacing:1px;text-transform:uppercase;margin-bottom:8px;">אפליקציית יומן מועדפת</div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;">
+        ${calApps.map(a=>`
+          <button onclick="saveCalSetting('app','${a.val}');renderCalSettings('${cardId}')"
+            style="display:flex;align-items:center;gap:8px;padding:10px 12px;border-radius:10px;
+              border:1.5px solid ${s.app===a.val?'var(--amber)':'var(--border2)'};
+              background:${s.app===a.val?'rgba(245,158,11,.1)':'var(--ink3)'};
+              color:var(--txt);font-family:Heebo,sans-serif;font-size:13px;font-weight:${s.app===a.val?'900':'700'};
+              cursor:pointer;text-align:right;transition:all .15s;">
+            <span style="font-size:18px;flex-shrink:0;">${a.icon}</span>
+            <span style="flex:1;">${a.label}</span>
+            ${s.app===a.val?'<span style="color:var(--amber);font-size:14px;">✓</span>':''}
+          </button>`).join('')}
+      </div>
+    </div>
+    <div style="height:1px;background:var(--border);margin:10px 14px;"></div>
+    <!-- export mode -->
+    <div style="padding:0 14px 4px;">
+      <div style="font-size:10px;font-weight:800;color:var(--txt3);letter-spacing:1px;text-transform:uppercase;margin-bottom:8px;">מצב ייצוא</div>
+      ${[{val:'quick',icon:'⚡',label:'פתיחה מהירה',sub:'ייצוא מיידי לאפליקציה המועדפת'},{val:'ask',icon:'🔀',label:'בחירת יומן',sub:'בכל ייצוא תוצג בחירה'}].map(m=>`
+        <div onclick="saveCalSetting('mode','${m.val}');renderCalSettings('${cardId}')"
+          style="display:flex;align-items:center;gap:10px;padding:10px 12px;border-radius:10px;
+            border:1.5px solid ${s.mode===m.val?'var(--amber)':'var(--border2)'};
+            background:${s.mode===m.val?'rgba(245,158,11,.1)':'var(--ink3)'};
+            margin-bottom:6px;cursor:pointer;transition:all .15s;">
+          <span style="font-size:20px;">${m.icon}</span>
+          <div style="flex:1;">
+            <div style="font-size:13px;font-weight:${s.mode===m.val?'900':'700'};color:var(--txt);">${m.label}</div>
+            <div style="font-size:11px;color:var(--txt2);">${m.sub}</div>
+          </div>
+          <div style="width:20px;height:20px;border-radius:50%;border:2px solid ${s.mode===m.val?'var(--amber)':'var(--border2)'};
+            background:${s.mode===m.val?'var(--amber)':'transparent'};display:flex;align-items:center;justify-content:center;flex-shrink:0;">
+            ${s.mode===m.val?'<div style="width:8px;height:8px;border-radius:50%;background:#000;"></div>':''}
+          </div>
+        </div>`).join('')}
+    </div>
+    <div style="height:1px;background:var(--border);margin:2px 14px 10px;"></div>
+    <!-- default reminder -->
+    <div style="padding:0 14px 12px;">
+      <div style="font-size:10px;font-weight:800;color:var(--txt3);letter-spacing:1px;text-transform:uppercase;margin-bottom:8px;">תזכורת ברירת מחדל</div>
+      <div style="display:flex;gap:6px;flex-wrap:wrap;">
+        ${reminders.map(rr=>`
+          <button onclick="saveCalSetting('reminder',${rr.val});renderCalSettings('${cardId}')"
+            style="padding:8px 14px;border-radius:999px;
+              border:1.5px solid ${s.reminder===rr.val?'var(--amber)':'var(--border2)'};
+              background:${s.reminder===rr.val?'var(--amber)':'var(--ink3)'};
+              color:${s.reminder===rr.val?'#000':'var(--txt)'};
+              font-family:Heebo,sans-serif;font-size:12px;font-weight:800;cursor:pointer;transition:all .15s;">
+            ${rr.label}
+          </button>`).join('')}
+      </div>
+    </div>`;
+}
+
+// Open app picker (for 'ask' mode) — shows bottom-sheet style modal
+function _calPickerOpen(onPick){
+  const existing = document.getElementById('calPickerOverlay');
+  if(existing) existing.remove();
+  const overlay = document.createElement('div');
+  overlay.id = 'calPickerOverlay';
+  overlay.style.cssText = 'position:fixed;inset:0;z-index:8500;background:rgba(0,0,0,.55);backdrop-filter:blur(4px);display:flex;align-items:flex-end;';
+  overlay.innerHTML = `
+    <div style="background:var(--panel);border-radius:20px 20px 0 0;width:100%;padding:16px 16px calc(16px + var(--safe-b));">
+      <div style="width:36px;height:4px;border-radius:2px;background:var(--border2);margin:0 auto 16px;"></div>
+      <div style="font-size:15px;font-weight:900;margin-bottom:14px;text-align:center;">פתח ביומן...</div>
+      ${[
+        {val:'system',  icon:'📅', label:'ברירת מחדל'},
+        {val:'google',  icon:'🗓',  label:'Google Calendar'},
+        {val:'apple',   icon:'',   label:'Apple Calendar'},
+        {val:'outlook', icon:'📧', label:'Outlook'},
+      ].map(a=>`
+        <button id="calPick_${a.val}"
+          style="display:flex;align-items:center;gap:12px;width:100%;padding:13px 14px;border-radius:12px;border:1px solid var(--border);background:var(--ink3);color:var(--txt);font-family:Heebo,sans-serif;font-size:14px;font-weight:800;cursor:pointer;margin-bottom:8px;text-align:right;transition:background .12s;"
+          onclick="document.getElementById('calPickerOverlay').remove();(${onPick})('${a.val}')">
+          <span style="font-size:22px;">${a.icon}</span>
+          <span>${a.label}</span>
+        </button>`).join('')}
+      <button onclick="document.getElementById('calPickerOverlay').remove()"
+        style="width:100%;padding:12px;border-radius:12px;border:1px solid var(--border);background:transparent;color:var(--txt2);font-family:Heebo,sans-serif;font-size:14px;font-weight:800;cursor:pointer;margin-top:4px;">
+        ביטול
+      </button>
+    </div>`;
+  overlay.addEventListener('click', e=>{ if(e.target===overlay) overlay.remove(); });
+  document.body.appendChild(overlay);
+}
+
+// ══════ ESTIMATED END TIME HELPER ══════
+// Returns HH:MM string if valid, empty string otherwise — never undefined/null/garbage
+function getEstEnd(trip){
+  const v = (trip && (trip.estimatedEndTime || trip.endTimeEstimated)) || '';
+  if(!v || v==='undefined' || v==='null') return '';
+  return String(v).trim();
+}
+
 // ══════ SCHEDULE ══════
 function renderSchedule(){
   const ws=weekStart(S.weekOffset);
@@ -2845,7 +3004,7 @@ function renderSchedule(){
     if(isAdmin) bl.draggable=true;
     bl.innerHTML=`
       <div class="tb-main">
-        <div class="tb-time">${trip.time}${trip.actualTime&&trip.actualTime!==trip.time?` · <span style="color:${t2m(trip.actualTime)>t2m(trip.time)?'var(--red)':'var(--green)'}">${trip.actualTime}</span>`:''}</div>
+        <div class="tb-time">${trip.time}${(()=>{const _ee=getEstEnd(trip);return _ee?` <span style="font-size:10px;color:var(--txt2);font-weight:600;opacity:.85;">→ ${_ee}</span>`:''})()}${trip.actualTime&&trip.actualTime!==trip.time?` · <span style="color:${t2m(trip.actualTime)>t2m(trip.time)?'var(--red)':'var(--green)'}">${trip.actualTime}</span>`:''}</div>
         <div class="tb-route">${trip.from} → ${trip.to}</div>
         ${trip.stops&&trip.stops.length?`<div style="font-size:10px;color:var(--txt3);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${trip.stops.map(s=>'↓'+s).join(' ')}</div>`:''}
         <div class="tb-meta">
@@ -3473,6 +3632,8 @@ function openAddTrip(day,time){
   document.getElementById('fDay').value=day!==undefined?day:S.selDay;
   document.getElementById('fTime').value=time||'08:00';
   ['fFrom','fTo','fNotes'].forEach(id=>document.getElementById(id).value='');
+  // איפוס שעת סיום משוערת
+  const _eeReset = document.getElementById('fEstimatedEnd'); if(_eeReset) _eeReset.value='';
   document.getElementById('fCommander').value='';
   const ftc=document.getElementById('fTripCommander'); if(ftc) ftc.value='';
   document.getElementById('fCommanderText').style.display='none';
@@ -3509,6 +3670,10 @@ function saveTrip(){
     tripCommander:(document.getElementById('fTripCommander')?.value||'').trim(),
     sentBy:currentUser?.name||''
   };
+  // שעת סיום משוערת — שמור רק אם הוזנה
+  const _estEnd = (document.getElementById('fEstimatedEnd')?.value||'').trim();
+  if(_estEnd) baseData.estimatedEndTime = _estEnd;
+  else baseData.estimatedEndTime = '';
 
   const recurType=document.getElementById('fRecurType')?.value||'';
 
@@ -3677,7 +3842,7 @@ function openTripDetail(id){
   const driverAv=driver?avatarHtml(driver.avatar||'👤',36,'50%'):'';
   document.getElementById('tripDetailBody').innerHTML=`
     <div style="background:var(--ink3);border-radius:10px;padding:14px;margin-bottom:14px;">
-      <div style="font-size:22px;font-weight:900;margin-bottom:4px;">${trip.time} <span class="badge ${st.b}">${st.e}${st.l}</span></div>
+      <div style="font-size:22px;font-weight:900;margin-bottom:4px;">${trip.time}${(()=>{const _ee=getEstEnd(trip);return _ee?` <span style="font-size:14px;color:var(--txt2);font-weight:600;">→ ${_ee}</span>`:''})()}<span style="margin-right:8px;"></span><span class="badge ${st.b}">${st.e}${st.l}</span></div>
       <div style="font-size:17px;font-weight:800;">${trip.from}</div>
       ${trip.stops&&trip.stops.length?trip.stops.map(s=>`<div style="color:var(--txt2);font-size:13px;">↓ ${s}</div>`).join(''):''}
       <div style="color:var(--txt2);">↓</div>
@@ -3691,6 +3856,7 @@ function openTripDetail(id){
       <div style="background:var(--ink3);border-radius:8px;padding:10px;"><div style="font-size:10px;color:var(--txt3);margin-bottom:3px;">רכב</div><div style="font-weight:800;">${vehicle?(vehicle.icon&&vehicle.icon.length<5?vehicle.icon:'🚌')+vehicle.name:'—'}</div></div>
       <div style="background:var(--ink3);border-radius:8px;padding:10px;"><div style="font-size:10px;color:var(--txt3);margin-bottom:3px;">נוסעים</div><div style="font-weight:800;">${trip.passengers||'—'}</div></div>
       <div style="background:var(--ink3);border-radius:8px;padding:10px;"><div style="font-size:10px;color:var(--txt3);margin-bottom:3px;">סוג</div><div style="font-weight:800;">${trip.type||'—'}</div></div>
+      ${(()=>{const _ee=getEstEnd(trip);return _ee?`<div style="background:var(--ink3);border-radius:8px;padding:10px;grid-column:1/-1;"><div style="font-size:10px;color:var(--txt3);margin-bottom:3px;">⏱️ שעת סיום משוערת</div><div style="font-weight:900;color:var(--amber);">${_ee}</div></div>`:''})()}
     </div>
     ${trip.commander?`<div style="background:rgba(168,85,247,.08);border:1px solid rgba(168,85,247,.25);border-radius:8px;padding:8px 12px;margin-bottom:8px;font-size:13px;">🎖️ מפקד משלח: <strong>${trip.commander}</strong></div>`:''}
     ${trip.tripCommander?`<div style="background:rgba(20,184,166,.08);border:1px solid rgba(20,184,166,.25);border-radius:8px;padding:8px 12px;margin-bottom:8px;font-size:13px;">🪖 מפקד נסיעה: <strong>${trip.tripCommander}</strong></div>`:''}
@@ -3722,6 +3888,9 @@ function editTrip(id){
   document.getElementById('fEditId').value=id;
   document.getElementById('fDay').value=day;
   document.getElementById('fTime').value=trip.time;
+  // שעת סיום משוערת — אכלס אם קיים
+  const _eeInp = document.getElementById('fEstimatedEnd');
+  if(_eeInp) _eeInp.value = trip.estimatedEndTime||'';
   document.getElementById('fFrom').value=trip.from;
   document.getElementById('fTo').value=trip.to;
   document.getElementById('fNotes').value=trip.notes||'';
@@ -4478,6 +4647,15 @@ function renderPersonalSubContent(name){
         </div>
         ${currentUser.role==='admin'?`
         <div class="card" style="margin-bottom:12px;">
+          <div class="card-head"><h3>📅 הגדרות יומן</h3></div>
+          <div id="panCalSettingsCard"></div>
+        </div>`:`
+        <div class="card" style="margin-bottom:12px;">
+          <div class="card-head"><h3>📅 הגדרות יומן</h3></div>
+          <div id="panCalSettingsCard"></div>
+        </div>`}
+        ${currentUser.role==='admin'?`
+        <div class="card" style="margin-bottom:12px;">
           <div class="card-head"><h3>📤 ייצוא נתונים</h3></div>
           <div class="card-body">
             <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;margin-bottom:8px;">
@@ -4504,6 +4682,8 @@ function renderPersonalSubContent(name){
     if(vb) vb.textContent='גרסה '+APP_VERSION+' · '+APP_BUILD;
     const fs=document.getElementById('personalFbStatus');
     if(fs) fs.textContent=document.getElementById('appFbStatus')?.textContent||'—';
+    // Render calendar settings
+    requestAnimationFrame(()=>renderCalSettings('panCalSettingsCard'));
   } else if(name==='admin'){
     const isAdmin=currentUser.role==='admin';
     const isStaff=currentUser.role==='staff';
@@ -4797,7 +4977,7 @@ function renderSettings(){
   document.getElementById('adminSettingsPanel').style.display=_isAdmin?'block':'none';
   document.getElementById('driverSettingsPanel').style.display=(!_isAdmin&&!_isStaff)?'block':'none';
   document.getElementById('staffSettingsPanel').style.display=_isStaff?'block':'none';
-  if(_isAdmin){ loadNotifSettings(); requestAnimationFrame(()=>renderNotifSettings('adminNotifCard')); }
+  if(_isAdmin){ loadNotifSettings(); requestAnimationFrame(()=>{ renderNotifSettings('adminNotifCard'); renderCalSettings('adminCalCard'); }); }
   if(_isStaff){
     const card=document.getElementById('staffProfileCard');
     if(card) card.innerHTML=`<div class="card-body" style="display:flex;align-items:center;gap:12px;">
@@ -4808,7 +4988,7 @@ function renderSettings(){
       </div>
       <button class="btn btn-ghost btn-sm" style="margin-right:auto;" onclick="openSelfEdit()">✏️</button>
     </div>`;
-    loadNotifSettings(); requestAnimationFrame(()=>renderNotifSettings('staffNotifCard'));
+    loadNotifSettings(); requestAnimationFrame(()=>{ renderNotifSettings('staffNotifCard'); renderCalSettings('staffCalCard'); });
     return;
   }
   if(!_isAdmin){
@@ -4828,7 +5008,7 @@ function renderSettings(){
       ${currentUser.personalNumber?`<div class="sensitive-field-row"><span class="sensitive-field-label">מס' אישי</span><span class="sensitive-field-val">${currentUser.personalNumber}</span><button class="copy-btn" onclick="navigator.clipboard.writeText('${currentUser.personalNumber}');toast('הועתק ✓')">העתק</button></div>`:''}
     </div>`:''}
     `;
-    loadNotifSettings(); requestAnimationFrame(()=>renderNotifSettings('driverNotifCard'));
+    loadNotifSettings(); requestAnimationFrame(()=>{ renderNotifSettings('driverNotifCard'); renderCalSettings('driverCalCard'); });
     return;
   }
   // ── drivers ──
@@ -7072,6 +7252,18 @@ function addDriverNodeToTree(){}
 //  3. Fallback: data-URI download of .ics (works everywhere)
 
 function addTripToCalendar(tripId){
+  loadCalSettings();
+  const s = _calSettings;
+  if(s.mode === 'ask'){
+    _calPickerOpen(function(chosenApp){ _doAddTripToCalendar(tripId, chosenApp); });
+    return;
+  }
+  _doAddTripToCalendar(tripId, s.app);
+}
+
+function _doAddTripToCalendar(tripId, appChoice){
+  loadCalSettings();
+  const s = _calSettings;
   const trip = S.trips[tripId];
   if(!trip){ toast('נסיעה לא נמצאה'); return; }
 
@@ -7079,16 +7271,15 @@ function addTripToCalendar(tripId){
   const vehicle = gv(trip.vehicleId);
 
   // ── Build event times ──
-  const dateStr = trip.date || new Date().toISOString().slice(0,10); // YYYY-MM-DD
+  const dateStr = trip.date || new Date().toISOString().slice(0,10);
   const [year, month, day] = dateStr.split('-').map(Number);
   const [startH, startM]   = (trip.time||'08:00').split(':').map(Number);
-
   const dtStart = new Date(year, month-1, day, startH, startM, 0);
 
-  // End time: use estimatedEndTime if available, else +1 hour
   let dtEnd;
-  if(trip.estimatedEndTime){
-    const [endH, endM] = trip.estimatedEndTime.split(':').map(Number);
+  const _calEstEnd = getEstEnd(trip);
+  if(_calEstEnd){
+    const [endH, endM] = _calEstEnd.split(':').map(Number);
     dtEnd = new Date(year, month-1, day, endH, endM, 0);
     if(dtEnd <= dtStart) dtEnd = new Date(dtStart.getTime() + 60*60*1000);
   } else {
@@ -7100,18 +7291,17 @@ function addTripToCalendar(tripId){
     return `${d.getFullYear()}${pad(d.getMonth()+1)}${pad(d.getDate())}T${pad(d.getHours())}${pad(d.getMinutes())}00`;
   }
 
-  // ── Build event title & description ──
   const driverTxt  = driver  ? driver.name  : 'לא שויך';
   const vehicleTxt = vehicle ? vehicle.name : 'לא שויך';
-  const stopsStr   = (trip.stops && trip.stops.length) ? (' · עצירות: '+trip.stops.join(', ')) : '';
-  const commanderStr = trip.commander ? (' · מפקד: '+trip.commander) : '';
+  const stopsStr   = (trip.stops && trip.stops.length) ? 'עצירות: '+trip.stops.join(', ') : '';
 
   const title = `נסיעה: ${trip.from} → ${trip.to}`;
   const description = [
     `שעה: ${trip.time}`,
+    getEstEnd(trip) ? `שעת סיום משוערת: ${getEstEnd(trip)}` : '',
     `מוצא: ${trip.from}`,
     `יעד: ${trip.to}`,
-    stopsStr ? 'עצירות: '+trip.stops.join(', ') : '',
+    stopsStr,
     `נהג: ${driverTxt}`,
     `רכב: ${vehicleTxt}`,
     trip.commander ? 'מפקד: '+trip.commander : '',
@@ -7121,9 +7311,18 @@ function addTripToCalendar(tripId){
 
   const location = [trip.from, trip.to].filter(Boolean).join(' → ');
 
-  // ── Build ICS content ──
-  const uid_cal = 'trip-'+tripId+'@nesiut.app';
-  const now = icsDate(new Date());
+  // ── Build ICS with optional VALARM ──
+  const uid_cal      = 'trip-'+tripId+'@nesiut.app';
+  const nowStr       = icsDate(new Date());
+  const reminderMin  = s.reminder != null ? Number(s.reminder) : 0;
+
+  const alarmBlock = reminderMin > 0 ? [
+    'BEGIN:VALARM',
+    'TRIGGER:-PT'+reminderMin+'M',
+    'ACTION:DISPLAY',
+    'DESCRIPTION:תזכורת נסיעה: '+title,
+    'END:VALARM',
+  ] : [];
 
   const ics = [
     'BEGIN:VCALENDAR',
@@ -7133,32 +7332,224 @@ function addTripToCalendar(tripId){
     'METHOD:PUBLISH',
     'BEGIN:VEVENT',
     `UID:${uid_cal}`,
-    `DTSTAMP:${now}`,
+    `DTSTAMP:${nowStr}`,
     `DTSTART:${icsDate(dtStart)}`,
     `DTEND:${icsDate(dtEnd)}`,
     `SUMMARY:${_icsEscape(title)}`,
     `DESCRIPTION:${_icsEscape(description)}`,
     `LOCATION:${_icsEscape(location)}`,
+    ...alarmBlock,
     'END:VEVENT',
     'END:VCALENDAR',
   ].join('\r\n');
 
-
-  const blob = new Blob([ics], { type: 'text/calendar;charset=utf-8' });
+  const blob    = new Blob([ics], { type: 'text/calendar;charset=utf-8' });
   const blobUrl = URL.createObjectURL(blob);
 
-  // iOS: clicking a .ics link opens Apple Calendar directly
-  // Android/Desktop: downloads the file; Google Calendar can import it
-  const a = document.createElement('a');
-  a.href = blobUrl;
-  a.download = `nesiut_${tripId}.ics`;
-  document.body.appendChild(a);
-  a.click();
-  document.body.removeChild(a);
-  setTimeout(()=>URL.revokeObjectURL(blobUrl), 3000);
+  // ── Route to chosen app ──
+  const app = appChoice || s.app || 'system';
 
-  toast('📅 קובץ יומן נוצר — פתח אותו להוספה ליומן');
+  if(app === 'google'){
+    function gcDate(d){ const p=n=>String(n).padStart(2,'0'); return d.getFullYear()+p(d.getMonth()+1)+p(d.getDate())+'T'+p(d.getHours())+p(d.getMinutes())+'00'; }
+    window.open('https://calendar.google.com/calendar/render?action=TEMPLATE'
+      +'&text='+encodeURIComponent(title)
+      +'&dates='+gcDate(dtStart)+'/'+gcDate(dtEnd)
+      +'&details='+encodeURIComponent(description)
+      +'&location='+encodeURIComponent(location), '_blank');
+    toast('📅 נפתח ב-Google Calendar');
+  } else if(app === 'outlook'){
+    window.open('https://outlook.live.com/calendar/0/deeplink/compose?path=/calendar/action/compose&rru=addevent'
+      +'&subject='+encodeURIComponent(title)
+      +'&startdt='+dtStart.toISOString()
+      +'&enddt='+dtEnd.toISOString()
+      +'&body='+encodeURIComponent(description)
+      +'&location='+encodeURIComponent(location), '_blank');
+    toast('📅 נפתח ב-Outlook');
+  } else {
+    // system / apple → .ics download (iOS opens natively in Apple Calendar)
+    const a = document.createElement('a');
+    a.href = blobUrl; a.download = `nesiut_${tripId}.ics`;
+    document.body.appendChild(a); a.click(); document.body.removeChild(a);
+    setTimeout(()=>URL.revokeObjectURL(blobUrl), 3000);
+    toast(app==='apple' ? '📅 נפתח ב-Apple Calendar' : '📅 קובץ יומן נוצר — פתח אותו להוספה ליומן');
+  }
 }
+
+// ══════ MULTI-EVENT CALENDAR EXPORT ══════
+
+// Build a single VEVENT block (array of ICS lines) for one trip
+function _buildTripVevent(trip, nowStr, reminderMin){
+  function icsDate(d){
+    const pad=n=>String(n).padStart(2,'0');
+    return `${d.getFullYear()}${pad(d.getMonth()+1)}${pad(d.getDate())}T${pad(d.getHours())}${pad(d.getMinutes())}00`;
+  }
+  const dateStr = trip.date || new Date().toISOString().slice(0,10);
+  const [year,month,day] = dateStr.split('-').map(Number);
+  const [startH,startM]  = (trip.time||'08:00').split(':').map(Number);
+  const dtStart = new Date(year,month-1,day,startH,startM,0);
+
+  let dtEnd;
+  const ee = getEstEnd(trip);
+  if(ee){
+    const [endH,endM] = ee.split(':').map(Number);
+    dtEnd = new Date(year,month-1,day,endH,endM,0);
+    if(dtEnd<=dtStart) dtEnd = new Date(dtStart.getTime()+60*60*1000);
+  } else {
+    dtEnd = new Date(dtStart.getTime()+60*60*1000);
+  }
+
+  const driver  = gd(trip.driverId);
+  const vehicle = gv(trip.vehicleId);
+  const driverTxt  = driver  ? driver.name  : 'לא שויך';
+  const vehicleTxt = vehicle ? vehicle.name : 'לא שויך';
+  const stopsStr   = (trip.stops&&trip.stops.length) ? 'עצירות: '+trip.stops.join(', ') : '';
+
+  const title = `נסיעה: ${trip.from} → ${trip.to}`;
+  const desc  = [
+    `שעה: ${trip.time}`,
+    ee ? `שעת סיום משוערת: ${ee}` : '',
+    `מוצא: ${trip.from}`,
+    `יעד: ${trip.to}`,
+    stopsStr,
+    `נהג: ${driverTxt}`,
+    `רכב: ${vehicleTxt}`,
+    trip.commander ? 'מפקד: '+trip.commander : '',
+    trip.passengers ? `נוסעים: ${trip.passengers}` : '',
+    trip.notes      ? `הערות: ${trip.notes}` : '',
+  ].filter(Boolean).join('\n');
+
+  const loc     = [trip.from,trip.to].filter(Boolean).join(' → ');
+  const uid_cal = 'trip-'+trip.id+'@nesiut.app';
+
+  const alarm = reminderMin>0 ? [
+    'BEGIN:VALARM',
+    'TRIGGER:-PT'+reminderMin+'M',
+    'ACTION:DISPLAY',
+    'DESCRIPTION:תזכורת: '+title,
+    'END:VALARM',
+  ] : [];
+
+  return [
+    'BEGIN:VEVENT',
+    `UID:${uid_cal}`,
+    `DTSTAMP:${nowStr}`,
+    `DTSTART:${icsDate(dtStart)}`,
+    `DTEND:${icsDate(dtEnd)}`,
+    `SUMMARY:${_icsEscape(title)}`,
+    `DESCRIPTION:${_icsEscape(desc)}`,
+    `LOCATION:${_icsEscape(loc)}`,
+    ...alarm,
+    'END:VEVENT',
+  ];
+}
+
+// Build and dispatch a multi-event .ics (system/apple) or sequential tabs (google/outlook)
+function _exportTripsToCalendar(tripArr, filename, label){
+  if(!tripArr||!tripArr.length){ toast('אין נסיעות לייצוא'); return; }
+
+  loadCalSettings();
+  const s = _calSettings;
+
+  function go(app){
+    const reminderMin = s.reminder!=null ? Number(s.reminder) : 0;
+
+    if(app==='google'||app==='outlook'){
+      // sequential browser tabs — one per trip
+      // warn if many tabs
+      const MAX_TABS = 10;
+      const toOpen   = tripArr.slice(0,MAX_TABS);
+      if(tripArr.length>MAX_TABS) toast(`⚠️ פותח ${MAX_TABS} טאבים מתוך ${tripArr.length} נסיעות`);
+
+      toOpen.forEach((trip,i)=>{
+        setTimeout(()=>{
+          function icsDate(d){ const p=n=>String(n).padStart(2,'0'); return d.getFullYear()+p(d.getMonth()+1)+p(d.getDate())+'T'+p(d.getHours())+p(d.getMinutes())+'00'; }
+          const dateStr=(trip.date||new Date().toISOString().slice(0,10));
+          const [yr,mo,dy]=dateStr.split('-').map(Number);
+          const [sh,sm]=(trip.time||'08:00').split(':').map(Number);
+          const dtS=new Date(yr,mo-1,dy,sh,sm,0);
+          let dtE; const ee=getEstEnd(trip);
+          if(ee){ const [eh,em]=ee.split(':').map(Number); dtE=new Date(yr,mo-1,dy,eh,em,0); if(dtE<=dtS) dtE=new Date(dtS.getTime()+3600000); }
+          else dtE=new Date(dtS.getTime()+3600000);
+          const title=`נסיעה: ${trip.from} → ${trip.to}`;
+          const desc=[`שעה: ${trip.time}`,`מוצא: ${trip.from}`,`יעד: ${trip.to}`,gd(trip.driverId)?'נהג: '+gd(trip.driverId).name:'',trip.notes?'הערות: '+trip.notes:''].filter(Boolean).join('\n');
+          const loc=[trip.from,trip.to].filter(Boolean).join(' → ');
+          if(app==='google'){
+            window.open('https://calendar.google.com/calendar/render?action=TEMPLATE'
+              +'&text='+encodeURIComponent(title)
+              +'&dates='+icsDate(dtS)+'/'+icsDate(dtE)
+              +'&details='+encodeURIComponent(desc)
+              +'&location='+encodeURIComponent(loc),'_blank');
+          } else {
+            window.open('https://outlook.live.com/calendar/0/deeplink/compose?path=/calendar/action/compose&rru=addevent'
+              +'&subject='+encodeURIComponent(title)
+              +'&startdt='+dtS.toISOString()
+              +'&enddt='+dtE.toISOString()
+              +'&body='+encodeURIComponent(desc)
+              +'&location='+encodeURIComponent(loc),'_blank');
+          }
+        }, i*300); // 300ms stagger — avoids pop-up blocker on most browsers
+      });
+      toast(`📅 פותח ${toOpen.length} נסיעות ב-${app==='google'?'Google Calendar':'Outlook'}`);
+      return;
+    }
+
+    // system / apple → single .ics with multiple VEVENTs
+    function icsDateNow(d){ const p=n=>String(n).padStart(2,'0'); return `${d.getFullYear()}${p(d.getMonth()+1)}${p(d.getDate())}T${p(d.getHours())}${p(d.getMinutes())}00`; }
+    const nowStr = icsDateNow(new Date());
+
+    const veventLines = [];
+    tripArr.forEach(trip=>{ veventLines.push(..._buildTripVevent(trip,nowStr,reminderMin)); });
+
+    const ics = [
+      'BEGIN:VCALENDAR',
+      'VERSION:2.0',
+      'PRODID:-//Nesiut//Trip Calendar//HE',
+      'CALSCALE:GREGORIAN',
+      'METHOD:PUBLISH',
+      ...veventLines,
+      'END:VCALENDAR',
+    ].join('\r\n');
+
+    const blob    = new Blob([ics],{type:'text/calendar;charset=utf-8'});
+    const blobUrl = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = blobUrl; a.download = filename;
+    document.body.appendChild(a); a.click(); document.body.removeChild(a);
+    setTimeout(()=>URL.revokeObjectURL(blobUrl),4000);
+    toast(`📅 ${label} — ${tripArr.length} נסיעות יוצאו ליומן`);
+  }
+
+  if(s.mode==='ask'){
+    _calPickerOpen(function(chosenApp){ go(chosenApp); });
+  } else {
+    go(s.app||'system');
+  }
+}
+
+// ── Export current selected day ──
+function exportDayToCalendar(){
+  const ws = weekStart(S.weekOffset);
+  const selDate = new Date(ws); selDate.setDate(ws.getDate()+S.selDay);
+  const dateStr = ds(selDate);
+  const dayTrips = trips().filter(t=>t.date===dateStr).sort((a,b)=>t2m(a.time)-t2m(b.time));
+  const label = `ייצוא יום — ${fd(selDate)}`;
+  _exportTripsToCalendar(dayTrips, `nesiut_day_${dateStr}.ics`, label);
+}
+
+// ── Export current full week ──
+function exportWeekToCalendar(){
+  const ws = weekStart(S.weekOffset);
+  const weekTrips = [];
+  for(let d=0;d<7;d++){
+    const dd=new Date(ws); dd.setDate(ws.getDate()+d);
+    trips().filter(t=>t.date===ds(dd)).sort((a,b)=>t2m(a.time)-t2m(b.time)).forEach(t=>weekTrips.push(t));
+  }
+  const we=new Date(ws); we.setDate(ws.getDate()+6);
+  const label = `ייצוא שבוע — ${fd(ws)} עד ${fd(we)}`;
+  const weekLabel = `${ds(ws)}_to_${ds(we)}`;
+  _exportTripsToCalendar(weekTrips, `nesiut_week_${weekLabel}.ics`, label);
+}
+
 
 function _icsEscape(s){
   // ICS spec: escape special chars for .ics format
