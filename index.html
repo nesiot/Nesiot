@@ -1730,8 +1730,8 @@ function _enableOfflineSync(){
 }
 
 // ══════ APP VERSION ══════
-const APP_VERSION = 'Beta 36';
-const APP_BUILD   = '2026-05-17';
+const APP_VERSION = 'Beta 35';
+const APP_BUILD   = '2026-04-29';
 
 function publishVersion(){
   r('app/version').transaction(cur=>{
@@ -3651,6 +3651,7 @@ function openAddTrip(day,time){
   openModal('tripModal');
 }
 function saveTrip(){
+  if(!isAdmin()){ toast('⛔ אין הרשאה'); return; }
   if(!can('edit_trips')){toast('אין הרשאה');return;}
   const editId=document.getElementById('fEditId').value;
   const day=parseInt(document.getElementById('fDay').value);
@@ -3834,12 +3835,31 @@ function recurDeleteScope(scope){
 }
 function openTripDetail(id){
   const trip=S.trips[id]; if(!trip)return;
+
+  // ── SECURITY: driver can only open own trips ──
+  if(isDriver() && !isMyTrip(trip)){ toast('⛔ אין גישה לנסיעה זו'); return; }
+
   const driver=gd(trip.driverId),vehicle=gv(trip.vehicleId);
   const st=SM[trip.status||'pending'];
   const delay=trip.actualTime?t2m(trip.actualTime)-t2m(trip.time):0;
-  const isAdmin=currentUser?.role==='admin';
+  const _isAdmin=currentUser?.role==='admin';
   const cmtCnt=trip.comments?Object.keys(trip.comments).length:0;
   const driverAv=driver?avatarHtml(driver.avatar||'👤',36,'50%'):'';
+
+  // Status buttons: admin sees all, driver sees only allowed statuses
+  const statusButtons=_isAdmin
+    ? Object.entries(SM).map(([k,v])=>`<button class="btn btn-ghost btn-sm" onclick="setStatus('${trip.id}','${k}');closeModal('tripDetailModal');">${v.e}${v.l}</button>`).join('')
+    : DRIVER_ALLOWED_STATUSES.map(k=>{ const v=SM[k]; return v?`<button class="btn btn-ghost btn-sm" onclick="setStatus('${trip.id}','${k}');closeModal('tripDetailModal');">${v.e}${v.l}</button>`:''; }).join('');
+
+  // Admin-only fields: internal notes shown only to admin
+  const adminNotes=_isAdmin && trip.notes
+    ? `<div style="background:var(--ink3);border-radius:8px;padding:10px;margin-bottom:12px;font-size:13px;">📝 ${trip.notes}</div>`
+    : '';
+  // sentBy hidden from drivers
+  const sentByHtml=_isAdmin&&trip.sentBy
+    ? `<div style="background:rgba(59,130,246,.08);border:1px solid rgba(59,130,246,.2);border-radius:8px;padding:8px 12px;margin-bottom:10px;font-size:13px;">📤 נשלח ע"י: <strong>${trip.sentBy}</strong></div>`
+    : '';
+
   document.getElementById('tripDetailBody').innerHTML=`
     <div style="background:var(--ink3);border-radius:10px;padding:14px;margin-bottom:14px;">
       <div style="font-size:22px;font-weight:900;margin-bottom:4px;">${trip.time}${(()=>{const _ee=getEstEnd(trip);return _ee?` <span style="font-size:14px;color:var(--txt2);font-weight:600;">→ ${_ee}</span>`:''})()}<span style="margin-right:8px;"></span><span class="badge ${st.b}">${st.e}${st.l}</span></div>
@@ -3860,27 +3880,28 @@ function openTripDetail(id){
     </div>
     ${trip.commander?`<div style="background:rgba(168,85,247,.08);border:1px solid rgba(168,85,247,.25);border-radius:8px;padding:8px 12px;margin-bottom:8px;font-size:13px;">🎖️ מפקד משלח: <strong>${trip.commander}</strong></div>`:''}
     ${trip.tripCommander?`<div style="background:rgba(20,184,166,.08);border:1px solid rgba(20,184,166,.25);border-radius:8px;padding:8px 12px;margin-bottom:8px;font-size:13px;">🪖 מפקד נסיעה: <strong>${trip.tripCommander}</strong></div>`:''}
-    ${trip.sentBy?`<div style="background:rgba(59,130,246,.08);border:1px solid rgba(59,130,246,.2);border-radius:8px;padding:8px 12px;margin-bottom:10px;font-size:13px;">📤 נשלח ע"י: <strong>${trip.sentBy}</strong></div>`:''}
-    ${trip.notes?`<div style="background:var(--ink3);border-radius:8px;padding:10px;margin-bottom:12px;font-size:13px;">📝 ${trip.notes}</div>`:''}
+    ${sentByHtml}
+    ${adminNotes}
     ${delay?`<div style="background:rgba(239,68,68,.1);border-radius:8px;padding:10px;margin-bottom:12px;color:var(--red);">⏰ עיכוב ${delay} דק׳</div>`:''}
     ${trip.recurGroupId?`<div style="background:rgba(168,85,247,.08);border:1px solid rgba(168,85,247,.25);border-radius:8px;padding:8px 12px;margin-bottom:10px;font-size:13px;">🔁 נסיעה חוזרת: <strong>${trip.recurType==='daily'?'יומית':trip.recurType==='weekly'?'שבועית':'קבועה'}</strong></div>`:''}
     <div style="margin-bottom:12px;"><p style="font-size:11px;color:var(--txt3);margin-bottom:6px;">שנה סטטוס:</p>
-      <div style="display:flex;gap:6px;flex-wrap:wrap;">${Object.entries(SM).map(([k,v])=>`<button class="btn btn-ghost btn-sm" onclick="setStatus('${trip.id}','${k}');closeModal('tripDetailModal');">${v.e}${v.l}</button>`).join('')}</div>
+      <div style="display:flex;gap:6px;flex-wrap:wrap;">${statusButtons}</div>
     </div>
-    <div style="margin-bottom:12px;"><p style="font-size:11px;color:var(--txt3);margin-bottom:6px;">שעה בפועל:</p>
+    ${_isAdmin?`<div style="margin-bottom:12px;"><p style="font-size:11px;color:var(--txt3);margin-bottom:6px;">שעה בפועל:</p>
       <div style="display:flex;gap:8px;"><input type="time" id="actualTimeInput" value="${trip.actualTime||trip.time}" style="flex:1;padding:8px;border-radius:8px;background:var(--ink3);border:1px solid var(--border2);color:var(--txt);font-size:14px;outline:none;">
       <button class="btn btn-ghost btn-sm" onclick="setActualTime('${trip.id}')">שמור</button></div>
-    </div>
+    </div>`:''}
     <div style="display:flex;gap:8px;flex-wrap:wrap;">
-      ${isAdmin?`<button class="btn btn-ghost btn-sm" onclick="editTrip('${trip.id}');closeModal('tripDetailModal');">✏️ עריכה</button>`:''}
-      ${isAdmin?`<button class="btn btn-ghost btn-sm" onclick="openMoveModal('${trip.id}');closeModal('tripDetailModal');">↕️ הזז</button>`:''}
+      ${_isAdmin?`<button class="btn btn-ghost btn-sm" onclick="editTrip('${trip.id}');closeModal('tripDetailModal');">✏️ עריכה</button>`:''}
+      ${_isAdmin?`<button class="btn btn-ghost btn-sm" onclick="openMoveModal('${trip.id}');closeModal('tripDetailModal');">↕️ הזז</button>`:''}
       <button class="btn btn-ghost btn-sm" onclick="openComments('${trip.id}');closeModal('tripDetailModal');">💬${cmtCnt?' ('+cmtCnt+')':''}</button>
       <button class="btn btn-ghost btn-sm" onclick="doNav('${trip.id}')">🗺️ ניווט</button>
-      ${isAdmin?`<button class="btn btn-danger btn-sm" onclick="deleteTrip('${trip.id}');">🗑️${trip.recurGroupId?' סדרה':''}</button>`:''}
+      ${_isAdmin?`<button class="btn btn-danger btn-sm" onclick="deleteTrip('${trip.id}');">🗑️${trip.recurGroupId?' סדרה':''}</button>`:''}
     </div>`;
   openModal('tripDetailModal');
 }
 function editTrip(id){
+  if(!isAdmin()){ toast('⛔ אין הרשאה לערוך נסיעות'); return; }
   const trip=S.trips[id]; if(!trip)return;
   const ws=weekStart(S.weekOffset); let day=0;
   for(let d=0;d<7;d++){const dd=new Date(ws);dd.setDate(ws.getDate()+d);if(ds(dd)===trip.date){day=d;break;}}
@@ -3937,12 +3958,18 @@ function deleteTrip(id){
   toast('נסיעה נמחקה');
 }
 function setStatus(id,status){
-  const trip=S.trips[id]; if(!trip)return;
+  const trip=S.trips[id]; if(!trip) return;
+
+  // ── SECURITY: ownership + allowed status check ──
+  if(!isAdmin()){
+    if(!isMyTrip(trip)){ toast('⛔ אין הרשאה לעדכן נסיעה זו'); return; }
+    if(!DRIVER_ALLOWED_STATUSES.includes(status)){ toast('⛔ סטטוס לא מורשה'); return; }
+  }
+
   pushUndo('status_trip',{id,status:trip.status},'סטטוס שונה');
   const upd={status};
   if(status==='moving'){
     upd.actualDeparture=new Date().toISOString();
-    // notify staff + admin that trip started
     const payload={from:trip.from,to:trip.to,time:trip.time};
     sendNotifToRole('staff','trip_started',payload);
     sendNotifToRole('admin','trip_started',payload);
@@ -4248,20 +4275,45 @@ function confirmMove(){
 // ══════ DRIVER VIEW ══════
 function renderDriverView(){
   const sel=document.getElementById('driverViewSelect');
+  const content=document.getElementById('driverViewContent');
+
+  // ── SECURITY: if not admin/staff, lock to own driver record ──
+  if(!isAdmin() && !isStaff()){
+    const myDrv=getMyDriverRecord();
+    if(sel) sel.style.display='none'; // hide dropdown — driver cannot select others
+    if(!myDrv){
+      if(content) content.innerHTML=`<div class="empty" style="padding:24px;text-align:center;">
+        <div style="font-size:36px;margin-bottom:8px;">👤</div>
+        <div style="font-weight:800;">אינך מוגדר כנהג</div>
+        <div style="font-size:12px;color:var(--txt2);margin-top:4px;">פנה למנהל המערכת</div>
+        <button class="btn btn-ghost btn-sm" style="margin-top:12px;" onclick="renderDriverView()">🔄 רענן</button>
+      </div>`;
+      return;
+    }
+    _renderDriverContent(myDrv.id, content);
+    return;
+  }
+
+  // Admin/staff: show dropdown and allow selection
+  sel.style.display='';
   sel.innerHTML='<option value="">— בחר נהג —</option>'+drivers().map(d=>`<option value="${d.id}">${d.name}</option>`).join('');
   if(!sel.value&&selectedDriverId) sel.value=selectedDriverId;
-  if(!sel.value&&(currentUser?.role==='driver'||currentUser?.alsoDriver)){
-    const match=drivers().find(d=>d.id===currentUser.id||(currentUser.phone&&d.phone&&d.phone.replace(/\D/g,'')===currentUser.phone.replace(/\D/g,''))||d.name===currentUser.name);
-    if(match){sel.value=match.id;selectedDriverId=match.id;}
-  }
   if(sel.value) selectedDriverId=sel.value;
   const driverId=sel.value;
-  const content=document.getElementById('driverViewContent');
-  if(!driverId){content.innerHTML='<div class="empty"><div class="ei">👤</div><p>בחר נהג</p></div>';return;}
+  if(!driverId){ content.innerHTML='<div class="empty"><div class="ei">👤</div><p>בחר נהג</p></div>'; return; }
+  _renderDriverContent(driverId, content);
+}
+
+function _renderDriverContent(driverId, content){
   const driver=gd(driverId);
-  if(!driver){content.innerHTML='<div class="empty"><div class="ei">⚠️</div><p>נהג לא נמצא</p></div>';return;}
+  if(!driver){ content.innerHTML='<div class="empty"><div class="ei">⚠️</div><p>נהג לא נמצא</p></div>'; return; }
   const todayStr=ds(new Date());
-  const todayT=trips().filter(t=>t.date===todayStr&&t.driverId===driverId).sort((a,b)=>t2m(a.time)-t2m(b.time));
+  // ── SECURITY: driver sees only own trips ──
+  const driverTrips = isAdmin()||isStaff()
+    ? trips().filter(t=>t.driverId===driverId)
+    : trips().filter(t=>t.driverId===driverId && isMyTrip(t));
+  const todayT=driverTrips.filter(t=>t.date===todayStr).sort((a,b)=>t2m(a.time)-t2m(b.time));
+  const futureT=driverTrips.filter(t=>t.date>todayStr).sort((a,b)=>a.date.localeCompare(b.date)||t2m(a.time)-t2m(b.time));
   const nm=new Date().getHours()*60+new Date().getMinutes();
   const nextTrip=todayT.find(t=>t2m(t.time)>=nm&&t.status!=='done'&&t.status!=='cancelled');
   let html=`<div style="padding:12px;">
@@ -4286,13 +4338,22 @@ function renderDriverView(){
       </div>
     </div>
     <div style="display:flex;gap:8px;padding:0 12px 12px;overflow-x:auto;scrollbar-width:none;">
-      ${Object.entries(SM).map(([k,v])=>`<button class="btn btn-ghost btn-sm" style="flex-shrink:0;" onclick="setStatus('${nextTrip.id}','${k}');selectedDriverId='${driverId}';renderDriverView();">${v.e}${v.l}</button>`).join('')}
+      ${DRIVER_ALLOWED_STATUSES.map(k=>{ const v=SM[k]; return v?`<button class="btn btn-ghost btn-sm" style="flex-shrink:0;" onclick="setStatus('${nextTrip.id}','${k}');renderDriverView();">${v.e}${v.l}</button>`:''; }).join('')}
     </div>`;
+  } else if(!todayT.length && !futureT.length){
+    html+=`<div style="padding:0 12px;"><div class="card"><div class="card-body" style="text-align:center;">
+      <div style="font-size:36px;">📭</div>
+      <div style="font-weight:800;margin-top:8px;">אין נסיעות עתידיות</div>
+      <div style="font-size:12px;color:var(--txt2);margin-top:4px;">המערכת תתרענן אוטומטית</div>
+      <button class="btn btn-ghost btn-sm" style="margin-top:12px;" onclick="renderDriverView()">🔄 רענן</button>
+    </div></div></div>`;
   } else {
     html+=`<div style="padding:0 12px;"><div class="card"><div class="card-body" style="text-align:center;"><div style="font-size:36px;">✅</div><div style="font-weight:800;margin-top:8px;">אין נסיעות נוספות היום</div></div></div></div>`;
   }
   if(todayT.length)
     html+=`<div class="sec-title">כל הנסיעות היום</div><div class="card" style="margin:0 12px;">${todayT.map(t=>{const st=SM[t.status||'pending'];return`<div class="list-item" onclick="openTripDetail('${t.id}')"><div class="li-icon" style="background:rgba(59,130,246,.1);font-size:14px;">${t.time}</div><div class="li-body"><strong>${t.from} → ${t.to}</strong><small>${t.notes||''}</small></div><span class="badge ${st.b}">${st.e}</span></div>`;}).join('')}</div>`;
+  if(futureT.length)
+    html+=`<div class="sec-title">נסיעות עתידיות (${futureT.length})</div><div class="card" style="margin:0 12px;">${futureT.slice(0,10).map(t=>{const st=SM[t.status||'pending'];return`<div class="list-item" onclick="openTripDetail('${t.id}')"><div class="li-icon" style="background:rgba(59,130,246,.1);font-size:14px;">${t.date.slice(5)}</div><div class="li-body"><strong>${t.from} → ${t.to}</strong><small>${t.time}</small></div><span class="badge ${st.b}">${st.e}</span></div>`;}).join('')}</div>`;
   content.innerHTML=html;
 }
 
@@ -6475,6 +6536,45 @@ function startHierarchyListener(){
 // ══ Access helpers ══
 function isAdmin(){ return currentUser?.role==='admin'; }
 function isStaff(){ return currentUser?.role==='staff'; }
+function isDriver(){ return !isAdmin() && !isStaff() && currentUser?.role!=='guest' && !!currentUser; }
+function isGuestUser(){ return currentUser?.role==='guest' || !!currentUser?.isGuest; }
+
+// IDs of statuses a driver is allowed to set on their OWN trips
+const DRIVER_ALLOWED_STATUSES = ['moving','done','delayed'];
+
+// Returns the driver record linked to currentUser, or null
+function getMyDriverRecord(){
+  if(!currentUser) return null;
+  const uid=currentUser.id;
+  return drivers().find(d=>
+    d.linkedUserId===uid ||
+    d.id===uid ||
+    (currentUser.phone && d.phone && d.phone.replace(/\D/g,'')===currentUser.phone.replace(/\D/g,''))
+  )||null;
+}
+
+// Returns true if the given trip is assigned to the current user
+function isMyTrip(trip){
+  if(!trip||!currentUser) return false;
+  if(isAdmin()||isStaff()) return true; // admins/staff own all
+  const myDrv=getMyDriverRecord();
+  if(!myDrv) return false;
+  return trip.driverId===myDrv.id;
+}
+
+// Returns true if currentUser may edit/delete this trip
+function canEditTrip(trip){
+  if(isAdmin()) return true;
+  return false; // drivers and staff cannot edit — only status update on own trips
+}
+
+// Throws if driver tries to touch another driver's trip
+function assertTripOwnership(tripId){
+  if(isAdmin()) return;
+  const trip=S.trips[tripId];
+  if(!trip) throw new Error('Trip not found');
+  if(!isMyTrip(trip)) throw new Error('Unauthorized: trip does not belong to current user');
+}
 
 function collectSubtreeNodes(nodeId, treeId, set){
   set.add(nodeId);
@@ -6543,21 +6643,20 @@ function canSeeTree(treeId){
 function getVisibleTrips(){
   const allTrips=trips();
   if(isAdmin()) return allTrips;
-  if(isStaff()) return allTrips; // staff see all approved trips
-  const uid=currentUser.id;
-  const visibleUserIds=new Set([uid]);
-  Object.entries(S.hierarchy||{}).forEach(([treeId,tree])=>{
-    const {visibleNodeIds}=getTreeAccessForCurrentUser(treeId);
-    Object.values(tree.nodes||{}).forEach(n=>{
-      if(visibleNodeIds.has(n.id)&&n.userId) visibleUserIds.add(n.userId);
-    });
-  });
-  const visibleDriverIds=new Set(
-    drivers().filter(d=>visibleUserIds.has(d.linkedUserId)||visibleUserIds.has(d.id)||d.name===currentUser.name).map(d=>d.id)
-  );
-  const myDriver=drivers().find(d=>d.linkedUserId===uid||d.id===uid||d.name===currentUser.name);
-  if(myDriver) visibleDriverIds.add(myDriver.id);
-  return allTrips.filter(t=>visibleDriverIds.has(t.driverId));
+
+  // Staff: see all approved/assigned trips (read-only)
+  if(isStaff()){
+    return allTrips.filter(t=>t.driverId); // only assigned trips
+  }
+
+  // Driver: ONLY trips where driverId === their own driver record
+  if(isDriver()){
+    const myDrv=getMyDriverRecord();
+    if(!myDrv) return [];
+    return allTrips.filter(t=>t.driverId===myDrv.id);
+  }
+
+  return [];
 }
 
 // Legacy stubs
