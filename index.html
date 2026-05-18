@@ -863,6 +863,41 @@ body.light-mode .swipe-inner .trip-block{ background: #d1dce8 !important; }
 .version-label{font-size:11px;color:var(--txt3);font-weight:700;margin-bottom:2px;}
 .version-num{font-size:16px;font-weight:900;color:var(--amber);}
 .version-sub{font-size:11px;font-weight:800;color:var(--txt2);}
+/* ── SKELETON LOADING ─────────────────────────────── */
+@keyframes skShimmer{0%{background-position:200% 0}100%{background-position:-200% 0}}
+@keyframes skFadeIn{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:translateY(0)}}
+@keyframes loginSpinPulse{0%,100%{transform:scale(1);opacity:.9}50%{transform:scale(1.12);opacity:1}}
+
+.sk{
+  border-radius:8px;
+  background:linear-gradient(90deg,var(--ink3) 25%,var(--panel) 50%,var(--ink3) 75%);
+  background-size:200% 100%;
+  animation:skShimmer 1.6s ease infinite;
+}
+.sk-row{height:14px;margin:8px 0;border-radius:6px;}
+.sk-row-sm{height:10px;margin:5px 0;border-radius:5px;}
+.sk-avatar{width:42px;height:42px;border-radius:50%;flex-shrink:0;}
+.sk-card{background:var(--ink3);border:1px solid var(--border);border-radius:var(--r);padding:12px;margin-bottom:6px;overflow:hidden;}
+.sk-card .sk-body{display:flex;align-items:center;gap:12px;}
+.sk-card .sk-lines{flex:1;display:flex;flex-direction:column;gap:6px;}
+.sk-card .sk-line-a{height:13px;border-radius:5px;width:55%;}
+.sk-card .sk-line-b{height:10px;border-radius:5px;width:38%;}
+.sk-trip{background:var(--ink3);border:1px solid var(--border2);border-radius:10px;padding:10px 12px;margin-bottom:6px;border-right:3px solid var(--border2);}
+.sk-trip .sk-row{width:40%;}
+.sk-trip .sk-row:nth-child(2){width:65%;}
+.sk-trip .sk-row:nth-child(3){width:30%;}
+.sk-stat{background:var(--ink3);border-radius:var(--r);padding:14px 10px;text-align:center;}
+.sk-num{height:28px;border-radius:6px;width:50%;margin:0 auto 6px;}
+.sk-lbl{height:10px;border-radius:4px;width:65%;margin:0 auto;}
+
+/* Login loading state */
+.login-loading-wrap{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:16px;padding:28px;}
+.login-spinner{width:44px;height:44px;border-radius:50%;border:3px solid var(--border2);border-top-color:var(--amber);animation:spin .8s linear infinite;}
+@keyframes spin{to{transform:rotate(360deg)}}
+.login-loading-text{font-size:13px;color:var(--txt2);font-weight:700;animation:loginSpinPulse 1.4s ease infinite;}
+
+/* Smooth fade-in for loaded content */
+.sk-loaded{animation:skFadeIn .28s ease both;}
 </style>
 </head>
 <body>
@@ -1730,8 +1765,8 @@ function _enableOfflineSync(){
 }
 
 // ══════ APP VERSION ══════
-const APP_VERSION = 'Beta 36';
-const APP_BUILD   = '2026-05-17';
+const APP_VERSION = 'Beta 35';
+const APP_BUILD   = '2026-04-29';
 
 function publishVersion(){
   r('app/version').transaction(cur=>{
@@ -1768,7 +1803,7 @@ function startVersionListener(){
 }
 
 // ══════ STATE ══════
-const S = { trips:{}, drivers:{}, vehicles:{}, proposals:{}, customTags:{}, hierarchy:{}, weekOffset:0, histOffset:0, appMode:'plan', selDay:new Date().getDay() };
+const S = { trips:{}, drivers:{}, vehicles:{}, proposals:{}, customTags:{}, hierarchy:{}, users:{}, weekOffset:0, histOffset:0, appMode:'plan', selDay:new Date().getDay() };
 let currentUser=null, currentPage='schedule';
 let undoStack=[], undoTimer=null, dragTripId=null;
 let tfStatus='all', tfDriver='', selColor='#3b82f6', commentOff=null;
@@ -2108,8 +2143,8 @@ async function doPasswordLogin(){
   if(!ident||!pass){ showLoginError('נא להזין שם משתמש וסיסמה'); return; }
 
   const btn = document.querySelector('#loginMain .login-btn');
-  if(btn){ btn.textContent='מתחבר...'; btn.disabled=true; }
-  const done = ()=>{ if(btn){ btn.textContent='כניסה →'; btn.disabled=false; } };
+  if(btn){ btn.innerHTML='<span style="display:inline-flex;align-items:center;gap:8px;"><span class="login-spinner" style="width:18px;height:18px;border-width:2px;"></span>מתחבר...</span>'; btn.disabled=true; }
+  const done = ()=>{ if(btn){ btn.innerHTML='כניסה →'; btn.disabled=false; } };
 
   // ── STEP 1: Try Firebase Auth (migrated users) ──
   const fbAuthCodes_notFound = [
@@ -2412,6 +2447,7 @@ async function _writeUserIndex(uid_auth, name, phone, email){
 
 // ══════ FINISH LOGIN ══════
 function finishLogin(){
+  const o=document.getElementById('autoLoginOverlay');if(o)o.remove();
   document.getElementById('loginScreen').classList.add('hidden');
   const isAdmin=currentUser.role==='admin';
   const isGuest=currentUser.isGuest||currentUser.role==='guest';
@@ -2460,11 +2496,11 @@ function doLogout(){
 
 // ══════ FIREBASE LISTENERS ══════
 function startListeners(){
+  // ── Stage 0: connectivity dot (instant, zero cost) ──
   db.ref('.info/connected').on('value',snap=>{
     const c=snap.val();
     document.getElementById('liveDot').className='live-dot'+(c?' connected':'');
     document.getElementById('syncStatus').textContent=c?'🟢':'🔴';
-    // Offline banner
     let ob=document.getElementById('offlineBanner');
     if(!ob){
       ob=document.createElement('div');
@@ -2475,26 +2511,131 @@ function startListeners(){
     }
     ob.style.display=c?'none':'flex';
   });
-  r('trips').on('value',   snap=>{S.trips   =snap.val()||{}; scheduleRender();});
-  r('drivers').on('value', snap=>{S.drivers =snap.val()||{}; scheduleRender();});
-  r('vehicles').on('value',snap=>{S.vehicles=snap.val()||{}; scheduleRender();});
-  r('proposals').on('value',snap=>{S.proposals=snap.val()||{};renderPendingBadge();if(currentPage==='pending')renderPending();});
-  r('online').on('value',  snap=>renderOnline(snap.val()||{}));
+
+  // ── Stage 1: proposals + tags + hierarchy + online (light, needed for UI shell) ──
+  r('proposals').on('value',snap=>{
+    S.proposals=snap.val()||{};
+    renderPendingBadge();
+    if(currentPage==='pending') renderPending();
+  });
   r('tags').on('value',snap=>{
     S.customTags=snap.val()||{};
     if(currentPage==='settings') renderTagManager();
     refreshTagPillRows();
     refreshCommanderDropdown();
   });
+  r('online').on('value', snap=>renderOnline(snap.val()||{}));
   startHierarchyListener();
-  // Cache user profile for offline/legacy session restore
-  if(currentUser){
-    if(localStorage.getItem('rememberMe')==='true'){
-      try{ localStorage.setItem('savedUser', JSON.stringify(stripSensitive(currentUser))); }catch(e){}
+
+  // ── Stage 2: drivers + vehicles — independent, parallel, skeleton while loading ──
+  _showSettingsSkeleton();
+  let _driversReady=false, _vehiclesReady=false;
+  const _trySettingsRender=()=>{
+    if(_driversReady && _vehiclesReady && currentPage==='settings') _scheduleSettingsRender();
+  };
+  r('drivers').on('value', snap=>{
+    S.drivers=snap.val()||{};
+    _driversReady=true;
+    scheduleRender();
+    _trySettingsRender();
+  });
+  r('vehicles').on('value', snap=>{
+    S.vehicles=snap.val()||{};
+    _vehiclesReady=true;
+    scheduleRender();
+    _trySettingsRender();
+  });
+
+  // ── Stage 3: users — single listener (replaces _refreshUsersCache), deferred 200ms ──
+  setTimeout(()=>{
+    r('users').on('value', snap=>{
+      const raw=snap.val()||{};
+      S.users=raw;
+      const all=Object.values(raw).filter(u=>u&&u.name).map(stripSensitive);
+      _hAllUsers=all.filter(u=>!u.isGuest&&u.status!=='pending');
+      _hAllUsersWithGuests=all.filter(u=>u.status!=='pending');
+      try{ localStorage.setItem('cachedUsers',JSON.stringify(all)); }catch(e){}
+      if(currentPage==='settings') _scheduleSettingsRender();
+    });
+  }, 200);
+
+  // ── Stage 4: trips ──
+  // SECURITY: drivers load ONLY their own trips via driverId query.
+  // Admins/staff load all trips.
+  setTimeout(()=>{
+    const _isDriverRole = currentUser && !['admin','staff'].includes(currentUser.role) && !currentUser.isGuest;
+    if(_isDriverRole){
+      // Driver: find linked driver record first, then subscribe to their trips only
+      const myDrv = getMyDriverRecord();
+      if(myDrv){
+        // Targeted query: only trips assigned to this driver
+        r('trips').orderByChild('driverId').equalTo(myDrv.id).on('value', snap=>{
+          const newTrips = snap.val()||{};
+          // Merge into S.trips — don't replace admin's full set if they switch
+          S.trips = {...S.trips, ...newTrips};
+          // Remove trips that no longer belong to this driver (re-assignment)
+          Object.keys(S.trips).forEach(id=>{
+            if(S.trips[id] && S.trips[id].driverId && S.trips[id].driverId !== myDrv.id){
+              delete S.trips[id];
+            }
+          });
+          scheduleRender();
+        });
+      } else {
+        // No driver record yet — try after a delay (race condition on first login)
+        setTimeout(()=>{
+          const myDrv2 = getMyDriverRecord();
+          if(myDrv2){
+            r('trips').orderByChild('driverId').equalTo(myDrv2.id).on('value', snap=>{
+              S.trips = snap.val()||{};
+              scheduleRender();
+            });
+          } else {
+            // Still no driver record — show empty state, listen for changes
+            S.trips = {};
+            scheduleRender();
+          }
+        }, 2000);
+      }
+    } else {
+      // Admin/staff/guest: full trips listener
+      r('trips').on('value', snap=>{
+        S.trips=snap.val()||{};
+        scheduleRender();
+      });
     }
+  }, 350);
+
+  // Cache user profile
+  if(currentUser && localStorage.getItem('rememberMe')==='true'){
+    try{ localStorage.setItem('savedUser',JSON.stringify(stripSensitive(currentUser))); }catch(e){}
   }
-  _refreshUsersCache();
-  _enableOfflineSync();   // now safe — user is authenticated, connection is established
+  _enableOfflineSync();
+}
+
+// Debounced settings render — avoids re-rendering settings on every incremental update
+let _settingsRenderTimer=null;
+function _scheduleSettingsRender(){
+  clearTimeout(_settingsRenderTimer);
+  _settingsRenderTimer=setTimeout(()=>{ if(currentPage==='settings') renderSettings(); }, 150);
+}
+
+// Skeleton placeholder for settings cards while data loads
+function _showSettingsSkeleton(){
+  const skCard=(n=3)=>Array(n).fill(0).map(()=>`
+    <div class="sk-card">
+      <div class="sk-body">
+        <div class="sk sk-avatar"></div>
+        <div class="sk-lines">
+          <div class="sk sk-line-a"></div>
+          <div class="sk sk-line-b"></div>
+        </div>
+      </div>
+    </div>`).join('');
+  ['driversCard','vehiclesCard'].forEach(id=>{
+    const el=document.getElementById(id);
+    if(el&&!el.dataset.loaded) el.innerHTML=skCard();
+  });
 }
 
 // ══════ AUTO-LOGIN (Remember Me) ══════
@@ -2502,6 +2643,20 @@ function startListeners(){
 function tryAutoLogin(){
   const remember = localStorage.getItem('rememberMe');
   if(remember !== 'true') return;
+  // Show Apple-style loading state immediately — no blank screen
+  const loginScreen=document.getElementById('loginScreen');
+  if(loginScreen){
+    const overlay=document.createElement('div');
+    overlay.id='autoLoginOverlay';
+    overlay.style.cssText='position:absolute;inset:0;z-index:9999;display:flex;flex-direction:column;align-items:center;justify-content:center;background:var(--ink);gap:14px;';
+    overlay.innerHTML=`
+      <div style="font-size:48px;animation:loginSpinPulse 1.8s ease infinite;">🚐</div>
+      <div class="login-loading-text">טוען...</div>`;
+    loginScreen.style.position='relative';
+    loginScreen.appendChild(overlay);
+    // Remove overlay if login takes too long (fallback)
+    setTimeout(()=>{const o=document.getElementById('autoLoginOverlay');if(o)o.remove();},7000);
+  }
   const raw = localStorage.getItem('savedUser');
   if(!raw) return;
   try {
@@ -4354,7 +4509,155 @@ function _renderDriverContent(driverId, content){
     html+=`<div class="sec-title">כל הנסיעות היום</div><div class="card" style="margin:0 12px;">${todayT.map(t=>{const st=SM[t.status||'pending'];return`<div class="list-item" onclick="openTripDetail('${t.id}')"><div class="li-icon" style="background:rgba(59,130,246,.1);font-size:14px;">${t.time}</div><div class="li-body"><strong>${t.from} → ${t.to}</strong><small>${t.notes||''}</small></div><span class="badge ${st.b}">${st.e}</span></div>`;}).join('')}</div>`;
   if(futureT.length)
     html+=`<div class="sec-title">נסיעות עתידיות (${futureT.length})</div><div class="card" style="margin:0 12px;">${futureT.slice(0,10).map(t=>{const st=SM[t.status||'pending'];return`<div class="list-item" onclick="openTripDetail('${t.id}')"><div class="li-icon" style="background:rgba(59,130,246,.1);font-size:14px;">${t.date.slice(5)}</div><div class="li-body"><strong>${t.from} → ${t.to}</strong><small>${t.time}</small></div><span class="badge ${st.b}">${st.e}</span></div>`;}).join('')}</div>`;
+
+  // ── Personal statistics ──
+  const allMyTrips = driverTrips;
+  const doneCnt  = allMyTrips.filter(t=>t.status==='done').length;
+  const delayCnt = allMyTrips.filter(t=>t.status==='delayed').length;
+  const totalKm  = allMyTrips.reduce((s,t)=>s+(Number(t.distanceKm)||0),0);
+  html += `
+    <div class="sec-title">📊 הסטטיסטיקות שלי</div>
+    <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px;padding:0 12px 12px;">
+      <div style="background:var(--ink3);border-radius:12px;padding:12px;text-align:center;">
+        <div style="font-size:22px;font-weight:900;color:var(--green);">${doneCnt}</div>
+        <div style="font-size:10px;color:var(--txt3);">בוצעו</div>
+      </div>
+      <div style="background:var(--ink3);border-radius:12px;padding:12px;text-align:center;">
+        <div style="font-size:22px;font-weight:900;color:var(--amber);">${allMyTrips.length}</div>
+        <div style="font-size:10px;color:var(--txt3);">סה"כ</div>
+      </div>
+      <div style="background:var(--ink3);border-radius:12px;padding:12px;text-align:center;">
+        <div style="font-size:22px;font-weight:900;color:var(--red);">${delayCnt}</div>
+        <div style="font-size:10px;color:var(--txt3);">עיכובים</div>
+      </div>
+    </div>`;
+
+  // ── Calendar export shortcuts ──
+  html += `
+    <div class="sec-title">📅 ייצוא יומן</div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;padding:0 12px 20px;">
+      <button class="btn btn-ghost" style="padding:12px;border-radius:12px;font-size:12px;font-weight:800;"
+        onclick="exportDriverDay('${driverId}')">
+        <svg viewBox="0 0 24 24" style="width:18px;height:18px;stroke:currentColor;stroke-width:2;fill:none;display:block;margin:0 auto 4px;"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+        ייצוא יום
+      </button>
+      <button class="btn btn-ghost" style="padding:12px;border-radius:12px;font-size:12px;font-weight:800;"
+        onclick="exportDriverWeek('${driverId}')">
+        <svg viewBox="0 0 24 24" style="width:18px;height:18px;stroke:currentColor;stroke-width:2;fill:none;display:block;margin:0 auto 4px;"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/><line x1="8" y1="14" x2="16" y2="14"/></svg>
+        ייצוא שבוע
+      </button>
+    </div>`;
+
   content.innerHTML=html;
+}
+
+
+// ── Driver status bottom sheet (replaces full trip detail for quick update) ──
+function openTripStatusSheet(tripId){
+  const trip=S.trips[tripId]; if(!trip) return;
+  if(!isMyTrip(trip)){ toast('⛔ אין הרשאה לנסיעה זו'); return; }
+  const existing=document.getElementById('statusSheet');
+  if(existing) existing.remove();
+  const sheet=document.createElement('div');
+  sheet.id='statusSheet';
+  sheet.style.cssText='position:fixed;bottom:0;right:0;left:0;z-index:8500;background:var(--panel);border-radius:18px 18px 0 0;padding:16px 16px calc(var(--safe-b,0px)+16px);box-shadow:0 -8px 40px rgba(0,0,0,.5);animation:slideUp .25s cubic-bezier(.34,1.3,.64,1);';
+  sheet.innerHTML=`
+    <div style="width:40px;height:4px;background:var(--border2);border-radius:2px;margin:0 auto 16px;"></div>
+    <div style="font-size:14px;font-weight:900;margin-bottom:12px;text-align:center;">${trip.from} → ${trip.to} · ${trip.time}</div>
+    <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;">
+      ${DRIVER_ALLOWED_STATUSES.map(k=>{
+        const v=SM[k]; if(!v) return '';
+        const active=trip.status===k;
+        return `<button style="padding:12px 8px;border-radius:12px;border:2px solid ${active?'var(--amber)':'var(--border2)'};background:${active?'rgba(245,158,11,.1)':'var(--ink3)'};color:var(--txt);font-family:Heebo,sans-serif;font-size:12px;font-weight:800;cursor:pointer;display:flex;flex-direction:column;align-items:center;gap:4px;"
+          onclick="setStatus('${tripId}','${k}');document.getElementById('statusSheet').remove();renderDriverView();">
+          <span style="font-size:20px;">${v.e}</span><span>${v.l}</span>
+        </button>`;
+      }).join('')}
+    </div>
+    <button class="btn btn-ghost btn-block" style="margin-top:12px;" onclick="document.getElementById('statusSheet').remove()">ביטול</button>`;
+  document.body.appendChild(sheet);
+  // Close on backdrop tap
+  setTimeout(()=>{
+    const close=e=>{ if(!sheet.contains(e.target)){ sheet.remove(); document.removeEventListener('touchstart',close); }};
+    document.addEventListener('touchstart',close);
+  },100);
+}
+
+// ── Export driver's day to .ics ──
+function exportDriverDay(driverId){
+  const todayStr = ds(new Date());
+  const dayTrips = Object.values(S.trips).filter(t=>t.driverId===driverId && t.date===todayStr);
+  if(!dayTrips.length){ toast('אין נסיעות היום לייצוא'); return; }
+  _exportTripsToIcs(dayTrips, `נסיעות_${todayStr}`);
+}
+
+// ── Export driver's week to .ics ──
+function exportDriverWeek(driverId){
+  const today = new Date();
+  const startOfWeek = new Date(today); startOfWeek.setDate(today.getDate()-today.getDay()); startOfWeek.setHours(0,0,0,0);
+  const endOfWeek = new Date(startOfWeek); endOfWeek.setDate(startOfWeek.getDate()+6);
+  const weekStr = ds(startOfWeek);
+  const endStr  = ds(endOfWeek);
+  const weekTrips = Object.values(S.trips).filter(t=>t.driverId===driverId && t.date>=weekStr && t.date<=endStr);
+  if(!weekTrips.length){ toast('אין נסיעות השבוע לייצוא'); return; }
+  _exportTripsToIcs(weekTrips, `נסיעות_שבוע_${weekStr}`);
+}
+
+// ── Build .ics from array of trips ──
+function _exportTripsToIcs(tripsArr, filename){
+  const events = tripsArr.map(trip=>{
+    const driver  = gd(trip.driverId);
+    const vehicle = gv(trip.vehicleId);
+    const [year,month,day] = (trip.date||'2024-01-01').split('-').map(Number);
+    const [startH,startM]  = (trip.time||'08:00').split(':').map(Number);
+    const dtStart = new Date(year,month-1,day,startH,startM,0);
+    let dtEnd;
+    if(trip.estimatedEndTime){
+      const [eh,em]=trip.estimatedEndTime.split(':').map(Number);
+      dtEnd=new Date(year,month-1,day,eh,em,0);
+      if(dtEnd<=dtStart) dtEnd=new Date(dtStart.getTime()+3600000);
+    } else {
+      dtEnd=new Date(dtStart.getTime()+3600000);
+    }
+    function icsDate(d){
+      const p=n=>String(n).padStart(2,'0');
+      return `${d.getFullYear()}${p(d.getMonth()+1)}${p(d.getDate())}T${p(d.getHours())}${p(d.getMinutes())}00`;
+    }
+    function icsEsc(s){
+      var r=String(s||'');
+      r=r.split('\\').join('\\\\');
+      r=r.split(';').join('\\;');
+      r=r.split(',').join('\\,');
+      r=r.split('\n').join('\\n');
+      return r;
+    }
+    const title=`נסיעה: ${trip.from} → ${trip.to}`;
+    const desc=[
+      `שעה: ${trip.time}`,
+      driver?`נהג: ${driver.name}`:'',
+      vehicle?`רכב: ${vehicle.name}`:'',
+      trip.passengers?`נוסעים: ${trip.passengers}`:'',
+      trip.notes?`הערות: ${trip.notes}`:'',
+    ].filter(Boolean).join('\n');
+    return [
+      'BEGIN:VEVENT',
+      `UID:trip-${trip.id}@nesiut.app`,
+      `DTSTAMP:${icsDate(new Date())}`,
+      `DTSTART:${icsDate(dtStart)}`,
+      `DTEND:${icsDate(dtEnd)}`,
+      `SUMMARY:${icsEsc(title)}`,
+      `DESCRIPTION:${icsEsc(desc)}`,
+      `LOCATION:${icsEsc((trip.from||'')+' -> '+(trip.to||''))}`,
+      'END:VEVENT',
+    ].join('\r\n');
+  }).join('\r\n');
+  const ics=['BEGIN:VCALENDAR','VERSION:2.0','PRODID:-//Nesiut//Trips//HE','CALSCALE:GREGORIAN','METHOD:PUBLISH',events,'END:VCALENDAR'].join('\r\n');
+  const blob=new Blob([ics],{type:'text/calendar;charset=utf-8'});
+  const url=URL.createObjectURL(blob);
+  const a=document.createElement('a'); a.href=url; a.download=filename+'.ics';
+  document.body.appendChild(a); a.click(); document.body.removeChild(a);
+  setTimeout(()=>URL.revokeObjectURL(url),3000);
+  toast('📅 קובץ יומן נוצר');
 }
 
 // ══════ TRIPS LIST ══════
@@ -4468,7 +4771,14 @@ function renderTripsList(){
   const toggleBtn=document.getElementById('advSearchToggle');
   if(toggleBtn) toggleBtn.style.color=hasAdv?'var(--amber)':'';
 
-  document.getElementById('tripsList').innerHTML=arr.length?arr.map(trip=>{
+  const tListEl=document.getElementById('tripsList');
+  // Show skeleton if trips not yet loaded (Stage-4 deferred 350ms)
+  if(!Object.keys(S.trips||{}).length && !tListEl?.dataset?.tripsLoaded){
+    tListEl.innerHTML=Array(4).fill(0).map(()=>`<div class="sk-trip"><div class="sk sk-row"></div><div class="sk sk-row"></div><div class="sk sk-row"></div></div>`).join('');
+    return;
+  }
+  if(tListEl) tListEl.dataset.tripsLoaded='1';
+  tListEl.innerHTML=arr.length?arr.map(trip=>{
     const driver=gd(trip.driverId),st=SM[trip.status||'pending'];
     const recurBadge=trip.recurGroupId?`<span class="recur-badge">🔁 ${trip.recurType==='daily'?'יומית':trip.recurType==='weekly'?'שבועית':'קבועה'}</span>`:'';
     return`<div class="list-item" onclick="openTripDetail('${trip.id}')">
@@ -4507,6 +4817,11 @@ function renderHistory(){
 
 // ══════ ANALYTICS ══════
 function renderAnalytics(){
+  if(!Object.keys(S.trips||{}).length){
+    const statsEl=document.getElementById('analyticsStats');
+    if(statsEl) statsEl.innerHTML=Array(4).fill(0).map(()=>`<div class="sk-stat sk"><div class="sk-num" style="height:28px;border-radius:6px;background:rgba(255,255,255,.06);margin:0 auto 6px;width:40%;"></div><div class="sk-lbl" style="height:10px;border-radius:4px;background:rgba(255,255,255,.06);width:55%;margin:0 auto;"></div></div>`).join('');
+    return;
+  }
   const ws=weekStart(S.weekOffset);const byDay={};const wt=[];
   for(let d=0;d<7;d++){const dd=new Date(ws);dd.setDate(ws.getDate()+d);byDay[d]=trips().filter(t=>t.date===ds(dd));byDay[d].forEach(t=>wt.push(t));}
   document.getElementById('analyticsStats').innerHTML=`
@@ -4795,11 +5110,20 @@ function _panDestroyCharts(){
   });
 }
 function renderPersonalAnalytics(){
+  // If data not yet loaded, show skeleton and schedule retry — no recursive fetch loop
   if(!Object.keys(S.drivers||{}).length || !Object.keys(S.vehicles||{}).length){
-    const promises=[];
-    if(!Object.keys(S.drivers||{}).length) promises.push(r('drivers').once('value').then(s=>{S.drivers=s.val()||{};}));
-    if(!Object.keys(S.vehicles||{}).length) promises.push(r('vehicles').once('value').then(s=>{S.vehicles=s.val()||{};}));
-    Promise.all(promises).then(()=>renderPersonalAnalytics());
+    const kpi=document.getElementById('panKpi');
+    const chartsArea=document.getElementById('panChartsArea')||document.getElementById('panDailyChart')?.parentElement?.parentElement;
+    if(kpi) kpi.innerHTML=Array(4).fill(0).map(()=>`<div class="sk-stat"><div class="sk sk-num"></div><div class="sk sk-lbl"></div></div>`).join('');
+    // Retry once data arrives — max 8s wait, no recursion
+    let _retries=0;
+    const _wait=setInterval(()=>{
+      _retries++;
+      if(Object.keys(S.drivers||{}).length && Object.keys(S.vehicles||{}).length){
+        clearInterval(_wait);
+        renderPersonalAnalytics();
+      } else if(_retries>16){ clearInterval(_wait); }
+    }, 500);
     return;
   }
   _panDestroyCharts();
@@ -5074,7 +5398,6 @@ function renderSettings(){
   }
   // ── drivers ──
   const dc=document.getElementById('driversCard');
-  console.log('DRIVERS_RENDER_ACTIVE', dc);
   if(dc){
     if(drivers().length){
       dc.innerHTML=drivers().map(d=>{
@@ -5094,12 +5417,13 @@ function renderSettings(){
           {bg:'rgba(239,68,68,.88)',   svgPath:'<polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><line x1="10" y1="11" x2="10" y2="17"/><line x1="14" y1="11" x2="14" y2="17"/>', label:'מחק', onclick:`_lsaClose();confirmDeleteDriver('${d.id}')`},
         ]);
       }).join('');
+      dc.dataset.loaded='1';
+      dc.classList.add('sk-loaded');
       _lsaAttach(dc);
     }
   }
   // ── vehicles ──
   const vc=document.getElementById('vehiclesCard');
-  console.log('VEHICLES_RENDER_ACTIVE', vc);
   if(vc){
     if(vehicles().length){
       vc.innerHTML=vehicles().map(v=>{
@@ -5125,19 +5449,23 @@ function renderSettings(){
           {bg:'rgba(239,68,68,.88)',   svgPath:'<polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><line x1="10" y1="11" x2="10" y2="17"/><line x1="14" y1="11" x2="14" y2="17"/>', label:'מחק',   onclick:`_lsaClose();confirmDeleteVehicle('${v.id}')`},
         ]);
       }).join('');
+      vc.dataset.loaded='1';
+      vc.classList.add('sk-loaded');
       _lsaAttach(vc);
     }
   }
-  // ── users (fresh fetch) ──
+  // ── users — use S.users (live from startListeners Stage-3), never fetch fresh ──
   const uc=document.getElementById('usersCard');
-  console.log('USERS_RENDER_ACTIVE', uc);
   const pRegList=document.getElementById('pendingRegList');
   const pRegTitle=document.getElementById('pendingRegTitle');
-  if(uc) uc.innerHTML='<div style="padding:12px;color:var(--txt3);font-size:13px;">טוען...</div>';
-  r('users').once('value').then(snap=>{
-    const allUsers=Object.values(snap.val()||{}).filter(u=>u&&u.name);
+  // Show skeleton if cache empty
+  if(uc && !Object.keys(S.users||{}).length){
+    uc.innerHTML=Array(3).fill(0).map(()=>`<div class="sk-card"><div class="sk-body"><div class="sk sk-avatar"></div><div class="sk-lines"><div class="sk sk-line-a"></div><div class="sk sk-line-b"></div></div></div></div>`).join('');
+  }
+  // Inline IIFE so we can use const/let without async fetch
+  (()=>{
+    const allUsers=Object.values(S.users||{}).filter(u=>u&&u.name);
     const pending=allUsers.filter(u=>u.status==='pending');
-    // Active = everyone who is NOT pending (includes users with no status field)
     const active=allUsers.filter(u=>u.status!=='pending');
     if(pRegList&&pRegTitle){
       pRegTitle.style.display=pending.length?'block':'none';
@@ -5233,7 +5561,7 @@ function renderSettings(){
         });
       }
     }
-  }).catch(e=>{if(uc)uc.innerHTML=`<div class="empty"><p>שגיאה: ${e.message}</p></div>`;});
+  })();
 }
 
 function assignGuestPlatoon(userId, platoonId){
@@ -7148,16 +7476,14 @@ function _loadUsersForSearch(){
 // טעינה גלובלית בעת startListeners — כך _getUserById עובדת תמיד
 let _hAllUsersWithGuests=[];
 function _refreshUsersCache(){
-  // Fetch all users — no orderByChild filter to avoid missing users without explicit status
-  r('users').on('value', snap=>{
-    const all = Object.values(snap.val()||{})
-      .filter(u=>u&&u.name)
-      .map(stripSensitive);
-    _hAllUsers = all.filter(u => !u.isGuest && u.status !== 'pending');
-    _hAllUsersWithGuests = all.filter(u => u.status !== 'pending');
-    // Cache for offline legacy login (passwordHash already stripped by stripSensitive)
-    try{ localStorage.setItem('cachedUsers', JSON.stringify(all)); }catch(e){}
-  });
+  // Users listener is now owned by startListeners (Stage 3) to avoid duplicate on() registrations.
+  // This stub is kept for backward compatibility with any legacy callsites.
+  // If S.users already populated, sync _hAllUsers arrays immediately.
+  if(Object.keys(S.users||{}).length){
+    const all=Object.values(S.users).filter(u=>u&&u.name).map(stripSensitive);
+    _hAllUsers=all.filter(u=>!u.isGuest&&u.status!=='pending');
+    _hAllUsersWithGuests=all.filter(u=>u.status!=='pending');
+  }
 }
 
 // ══ NODE CRUD ══
